@@ -1,0 +1,13 @@
+main
+.DS_Store
+a.out
+imgui
+imgui.ini
+shaders/compiled_shaders/*
+/subprojects/
+/build/*
+/icd.d/*
+/explicit_layer.d/*
+.cache
+!/subprojects/*.wrap
+!/subprojects/packagefiles
