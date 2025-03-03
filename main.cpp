@@ -284,30 +284,151 @@ private:
     }
 
     void createDescriptorPool() {
-        VkDescriptorPoolSize pool_sizes[] =
-                {
-                    { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-                    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-                    { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-                    { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-                    { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-                    { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-                    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-                    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-                    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-                    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-                    { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-                };
+        VkDescriptorPoolSize pool_sizes[] = {
+        	{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        };
 
-                VkDescriptorPoolCreateInfo pool_info = {};
-                pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-                pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-                pool_info.maxSets = 1000;
-                pool_info.poolSizeCount = std::size(pool_sizes);
-                pool_info.pPoolSizes = pool_sizes;
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 1000;
+        pool_info.poolSizeCount = std::size(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
 
-                vkCreateDescriptorPool(context->device, &pool_info, nullptr, &descriptorPool);
+        vkCreateDescriptorPool(context->device, &pool_info, nullptr, &descriptorPool);
     }
+
+    void createImguiWindow() {
+        int width, height;
+        SDL_GetWindowSize(window, &width, &height); // Get real-time window size
+
+        ImGui::SetNextWindowSize(ImVec2((float)width, (float)height), ImGuiCond_Always); // Always resize
+        ImGui::SetNextWindowPos(ImVec2(0, 0)); // Lock to top-left corner
+
+        ImGui::Begin("Graphical Vulkan Editor", nullptr,
+            ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoTitleBar |
+            ImGuiWindowFlags_NoResize);
+
+        if (ImGui::BeginTabBar("MainTabBar")) {
+            if (ImGui::BeginTabItem("Instance")) {
+                ImGui::Text("Application Name:");
+                static char appName[256] = "";
+                ImGui::InputText("##appName", appName, IM_ARRAYSIZE(appName));
+
+                static bool showDebug = true;
+                ImGui::Checkbox("Show Validation Layer Debug Info", &showDebug);
+
+                static bool runOnMacOS = false;
+                ImGui::Checkbox("Run on MacOS", &runOnMacOS);
+
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Physical Device")) {
+                ImGui::Text("Select a Physical Device:");
+                static int selectedGPU = 0;
+                const char* devices[] = { "GPU 1", "GPU 2", "GPU 3" }; // Placeholder
+                ImGui::Combo("##gpuSelector", &selectedGPU, devices, IM_ARRAYSIZE(devices));
+
+                ImGui::Text("Device Properties:");
+                ImGui::Text("Memory: 8GB");
+                ImGui::Text("Compute Units: 32");
+
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Logical Device")) {
+                ImGui::Text("Queue Families:");
+                static bool graphicsQueue = true;
+                static bool computeQueue = false;
+                ImGui::Checkbox("Graphics Queue", &graphicsQueue);
+                ImGui::Checkbox("Compute Queue", &computeQueue);
+
+                ImGui::Text("Extensions:");
+                static bool enableRayTracing = false;
+                ImGui::Checkbox("Enable Ray Tracing", &enableRayTracing);
+
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Swapchain")) {
+                ImGui::Text("Choose Swapchain Settings:");
+
+                static int swapchainImageCount = 3;
+                ImGui::SliderInt("Image Count", &swapchainImageCount, 2, 8);
+
+                static int vsyncMode = 0;
+                const char* vsyncOptions[] = { "Immediate", "Mailbox", "Fifo", "Fifo Relaxed" };
+                ImGui::Combo("VSync Mode", &vsyncMode, vsyncOptions, IM_ARRAYSIZE(vsyncOptions));
+
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Model")) {
+                static char modelPath[256] = "models/viking_room.obj";
+                static char texturePath[256] = "textures/viking_room.png";
+
+                ImGui::Text("Model File:");
+                ImGui::InputText("##modelFile", modelPath, IM_ARRAYSIZE(modelPath));
+                ImGui::SameLine();
+                if (ImGui::Button("...")) {
+                    // Open file dialog
+                }
+
+                ImGui::Text("Texture File:");
+                ImGui::InputText("##textureFile", texturePath, IM_ARRAYSIZE(texturePath));
+                ImGui::SameLine();
+                if (ImGui::Button("...")) {
+                    // Open file dialog
+                }
+
+                if (ImGui::Button("Load Model")) {
+                    // Load model logic
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Graphics Pipeline")) {
+                static bool enableWireframe = false;
+                static int renderMode = 0;
+                const char* renderModes[] = { "Lit", "Wireframe", "Normals" };
+
+                ImGui::Checkbox("Enable Wireframe", &enableWireframe);
+                ImGui::Combo("Render Mode", &renderMode, renderModes, IM_ARRAYSIZE(renderModes));
+
+                if (ImGui::Button("Rebuild Pipeline")) {
+                    // Rebuild pipeline logic
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
+
+        // Bottom Button: Generate GVE Project Header
+        ImGui::SetCursorPosY(height - 60); // Align near bottom
+        ImGui::Separator();
+        if (ImGui::Button("Generate GVE Project Header", ImVec2(ImGui::GetContentRegionAvail().x, 40))) {
+            // Handle button press
+        }
+
+        ImGui::End();
+    }
+
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     	VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
@@ -330,80 +451,8 @@ private:
 
         vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-            ImGui::Begin("Graphical Vulkan Editor", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
-
-            if (ImGui::BeginTabBar("MainTabBar")) {
-                // Instance Tab
-                if (ImGui::BeginTabItem("Instance")) {
-                    ImGui::Text("Application Name:");
-                    static char appName[256] = "";
-                    ImGui::InputText("##appName", appName, IM_ARRAYSIZE(appName));
-
-                    static bool showDebug = true;
-                    ImGui::Checkbox("Show Validation Layer Debug Info", &showDebug);
-
-                    static bool runOnMacOS = false;
-                    ImGui::Checkbox("Run on MacOS", &runOnMacOS);
-
-                    ImGui::EndTabItem();
-                }
-
-                // Physical Device Tab
-                if (ImGui::BeginTabItem("Physical Device")) {
-                    ImGui::Text("Select a Physical Device:");
-                    static int selectedGPU = 0;
-                    const char* devices[] = { "GPU 1", "GPU 2", "GPU 3" }; // Placeholder
-                    ImGui::Combo("##gpuSelector", &selectedGPU, devices, IM_ARRAYSIZE(devices));
-
-                    ImGui::Text("Device Properties:");
-                    ImGui::Text("Memory: 8GB");
-                    ImGui::Text("Compute Units: 32");
-
-                    ImGui::EndTabItem();
-                }
-
-                // Logical Device Tab
-                if (ImGui::BeginTabItem("Logical Device")) {
-                    ImGui::Text("Queue Families:");
-                    static bool graphicsQueue = true;
-                    static bool computeQueue = false;
-                    ImGui::Checkbox("Graphics Queue", &graphicsQueue);
-                    ImGui::Checkbox("Compute Queue", &computeQueue);
-
-                    ImGui::Text("Extensions:");
-                    static bool enableRayTracing = false;
-                    ImGui::Checkbox("Enable Ray Tracing", &enableRayTracing);
-
-                    ImGui::EndTabItem();
-                }
-
-                // Swapchain Tab
-                if (ImGui::BeginTabItem("Swapchain")) {
-                    ImGui::Text("Choose Swapchain Settings:");
-
-                    static int swapchainImageCount = 3;
-                    ImGui::SliderInt("Image Count", &swapchainImageCount, 2, 8);
-
-                    static int vsyncMode = 0;
-                    const char* vsyncOptions[] = { "Immediate", "Mailbox", "Fifo", "Fifo Relaxed" };
-                    ImGui::Combo("VSync Mode", &vsyncMode, vsyncOptions, IM_ARRAYSIZE(vsyncOptions));
-
-                    ImGui::EndTabItem();
-                }
-
-                ImGui::EndTabBar();
-            }
-
-            // Move button to the bottom
-            ImGui::Spacing();
-            ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 50);  // Adjust this value as needed
-
-            ImGui::Separator();  // Adds a visual separator above the button
-            if (ImGui::Button("Generate GVE Project Header", ImVec2(ImGui::GetContentRegionAvail().x, 40))) {
-                // Handle button press
-            }
-
-            ImGui::End();
+        	//----------------------------------------------------------------------------------
+         	createImguiWindow();
 
             ImGui::Render();
 
