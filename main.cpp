@@ -1,3 +1,4 @@
+#include <map>
 #include <vulkan/vulkan_core.h>
 
 #define SDL_MAIN_HANDLED
@@ -81,6 +82,7 @@ private:
     std::vector<VkSemaphore> releaseSemaphores{ MAX_FRAMES_IN_FLIGHT };
     std::vector<VkFence> fences{ MAX_FRAMES_IN_FLIGHT };
     uint32_t currentFrame = 0;
+    bool framebufferResized = false;
 
     void initWindow() {
     	if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -103,6 +105,8 @@ private:
            	enabledDeviceExtensions,
             enableValidationLayers
         );
+        enumerateGPUs(context);
+        queryDeviceExtensions(context->physicalDevice);
         createSurface();
 
         int width = 0;
@@ -149,6 +153,8 @@ private:
       		switch (event.type) {
         	case SDL_EVENT_QUIT:
          		return false;
+         	case SDL_EVENT_WINDOW_RESIZED:
+          		framebufferResized = true;
         	}
       	}
 
@@ -228,7 +234,6 @@ private:
         vkDeviceWaitIdle(context->device);
 
         swapchain.destroySwapchain(context);
-
         swapchain.createSwapchain(context, surface, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
         //swapchain.createDepthResources(context);
         swapchain.createFrameBuffers(context, renderPass);
@@ -308,6 +313,75 @@ private:
         vkCreateDescriptorPool(context->device, &pool_info, nullptr, &descriptorPool);
     }
 
+    std::vector<std::string> gpuNames;
+    std::vector<VkPhysicalDevice> physicalDevices;
+    int selectedGPU = 0;
+
+    void enumerateGPUs(VulkanContext* context) {
+        uint32_t numDevices = 0;
+        vkEnumeratePhysicalDevices(context->instance, &numDevices, nullptr);
+
+        if (numDevices == 0) {
+            return;
+        }
+
+        physicalDevices.resize(numDevices);
+        gpuNames.clear();
+
+        vkEnumeratePhysicalDevices(context->instance, &numDevices, physicalDevices.data());
+
+        for (uint32_t i = 0; i < numDevices; ++i) {
+            VkPhysicalDeviceProperties properties;
+            vkGetPhysicalDeviceProperties(physicalDevices[i], &properties);
+            gpuNames.push_back(properties.deviceName);
+        }
+
+        // Set default selection
+        selectedGPU = 0;
+        context->physicalDevice = physicalDevices[selectedGPU];
+    }
+
+    std::vector<std::string> availableExtensions;
+    std::map<std::string, bool> extensionSelection;
+    bool runOnMacOS = false;
+
+    void queryDeviceExtensions(VkPhysicalDevice physicalDevice) {
+        uint32_t extensionCount = 0;
+        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+
+        if (extensionCount == 0) {
+           // LOG_ERROR("No device extensions found!");
+            return;
+        }
+
+        std::vector<VkExtensionProperties> extensions(extensionCount);
+        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, extensions.data());
+
+        availableExtensions.clear();
+        extensionSelection.clear();
+
+        // Required extensions
+        std::vector<std::string> requiredExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        if (runOnMacOS) {
+            requiredExtensions.push_back("VK_KHR_portability_subset");
+        }
+
+        // Populate available extensions and selection map
+        for (const auto& ext : extensions) {
+            std::string extName = ext.extensionName;
+            availableExtensions.push_back(extName);
+            extensionSelection[extName] = false;  // Default unchecked
+        }
+
+        // Ensure required extensions are always enabled and appear first
+        for (const auto& required : requiredExtensions) {
+            extensionSelection[required] = true;  // Always enabled
+        }
+
+        //LOG_INFO("Found %u available device extensions.", extensionCount);
+    }
+
+
     void createImguiWindow() {
         int width, height;
         SDL_GetWindowSize(window, &width, &height); // Get real-time window size
@@ -330,21 +404,33 @@ private:
                 static bool showDebug = true;
                 ImGui::Checkbox("Show Validation Layer Debug Info", &showDebug);
 
-                static bool runOnMacOS = false;
+                static bool runOnLinux = true;
+                //static bool runOnMacOS = false;
+                static bool runOnWindows = false;
+
+                ImGui::Checkbox("Run on Linux", &runOnLinux);
                 ImGui::Checkbox("Run on MacOS", &runOnMacOS);
+                ImGui::Checkbox("Run on Windows", &runOnWindows);
 
                 ImGui::EndTabItem();
             }
 
             if (ImGui::BeginTabItem("Physical Device")) {
                 ImGui::Text("Select a Physical Device:");
-                static int selectedGPU = 0;
-                const char* devices[] = { "GPU 1", "GPU 2", "GPU 3" }; // Placeholder
-                ImGui::Combo("##gpuSelector", &selectedGPU, devices, IM_ARRAYSIZE(devices));
+
+                // Convert vector<string> to vector<const char*>
+                std::vector<const char*> gpuNamesCStr;
+                for (const auto& name : gpuNames)
+                	gpuNamesCStr.push_back(name.c_str());
+
+                if (ImGui::Combo("##gpuSelector", &selectedGPU, gpuNamesCStr.data(), gpuNamesCStr.size())) {
+                	context->physicalDevice = physicalDevices[selectedGPU];
+                    vkGetPhysicalDeviceProperties(context->physicalDevice, &context->physicalDeviceProperties);
+                }
 
                 ImGui::Text("Device Properties:");
-                ImGui::Text("Memory: 8GB");
-                ImGui::Text("Compute Units: 32");
+                ImGui::Text("Memory: %u MB", context->physicalDeviceProperties.limits.maxMemoryAllocationCount);
+                ImGui::Text("Compute Units: %u", context->physicalDeviceProperties.limits.maxComputeSharedMemorySize);
 
                 ImGui::EndTabItem();
             }
@@ -357,8 +443,37 @@ private:
                 ImGui::Checkbox("Compute Queue", &computeQueue);
 
                 ImGui::Text("Extensions:");
-                static bool enableRayTracing = false;
-                ImGui::Checkbox("Enable Ray Tracing", &enableRayTracing);
+                // Separate required and optional extensions
+                std::vector<std::string> requiredExtensions;
+                std::vector<std::string> optionalExtensions;
+
+                for (const auto& ext : availableExtensions) {
+                	if (ext == VK_KHR_SWAPCHAIN_EXTENSION_NAME) {
+                   		requiredExtensions.push_back(ext);
+                 	} else {
+                        optionalExtensions.push_back(ext);
+                    }
+                	if(runOnMacOS) {
+                 		if (ext == "VK_KHR_portability_subset") {
+                   			requiredExtensions.push_back(ext);
+                   		}
+                 	}
+                }
+
+                // Display required extensions in bold, without checkboxes
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 0, 1));  // Yellow color for required
+                for (const auto& ext : requiredExtensions) {
+                    ImGui::Text("** %s ** (Required)", ext.c_str());
+                }
+                ImGui::PopStyleColor();
+
+                // Display optional extensions as checkboxes
+                for (const auto& ext : optionalExtensions) {
+                    bool checked = extensionSelection[ext];
+                    if (ImGui::Checkbox(ext.c_str(), &checked)) {
+                        extensionSelection[ext] = checked;
+                    }
+                }
 
                 ImGui::EndTabItem();
             }
@@ -429,7 +544,6 @@ private:
         ImGui::End();
     }
 
-
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     	VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
      	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -437,6 +551,12 @@ private:
         if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
             throw std::runtime_error("failed to begin recording command buffer!");
         }
+
+        VkViewport viewport = { 0.0f, 0.0f, (float)swapchain.extent.width, (float)swapchain.extent.height, 0.0f, 1.0f};
+		VkRect2D scissor = { {0, 0}, {swapchain.extent.width, swapchain.extent.height} };
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
 
         VkRenderPassBeginInfo renderPassInfo{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
         renderPassInfo.renderPass = renderPass.renderPass;
@@ -479,7 +599,8 @@ private:
             &imageIndex
         );
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == framebufferResized) {
+        	framebufferResized = false;
             recreateSwapChain();
             return;
         } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -515,7 +636,8 @@ private:
         result = vkQueuePresentKHR(context->graphicsQueue.queue, &presentInfo);
 
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || result == framebufferResized) {
+        	framebufferResized = false;
             recreateSwapChain();
         } else if (result != VK_SUCCESS) {
             throw std::runtime_error("Failed to present swap chain image!");
