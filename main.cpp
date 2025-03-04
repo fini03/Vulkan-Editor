@@ -27,6 +27,9 @@
 #include <cstdint>
 #include <array>
 
+#include "libs/tinyfiledialogs.h"
+#include "vulkan_view.h"
+
 constexpr int MAX_FRAMES_IN_FLIGHT  = 2;
 
 #ifdef __APPLE__
@@ -313,75 +316,6 @@ private:
         vkCreateDescriptorPool(context->device, &pool_info, nullptr, &descriptorPool);
     }
 
-    std::vector<std::string> gpuNames;
-    std::vector<VkPhysicalDevice> physicalDevices;
-    int selectedGPU = 0;
-
-    void enumerateGPUs(VulkanContext* context) {
-        uint32_t numDevices = 0;
-        vkEnumeratePhysicalDevices(context->instance, &numDevices, nullptr);
-
-        if (numDevices == 0) {
-            return;
-        }
-
-        physicalDevices.resize(numDevices);
-        gpuNames.clear();
-
-        vkEnumeratePhysicalDevices(context->instance, &numDevices, physicalDevices.data());
-
-        for (uint32_t i = 0; i < numDevices; ++i) {
-            VkPhysicalDeviceProperties properties;
-            vkGetPhysicalDeviceProperties(physicalDevices[i], &properties);
-            gpuNames.push_back(properties.deviceName);
-        }
-
-        // Set default selection
-        selectedGPU = 0;
-        context->physicalDevice = physicalDevices[selectedGPU];
-    }
-
-    std::vector<std::string> availableExtensions;
-    std::map<std::string, bool> extensionSelection;
-    bool runOnMacOS = false;
-
-    void queryDeviceExtensions(VkPhysicalDevice physicalDevice) {
-        uint32_t extensionCount = 0;
-        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-
-        if (extensionCount == 0) {
-           // LOG_ERROR("No device extensions found!");
-            return;
-        }
-
-        std::vector<VkExtensionProperties> extensions(extensionCount);
-        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, extensions.data());
-
-        availableExtensions.clear();
-        extensionSelection.clear();
-
-        // Required extensions
-        std::vector<std::string> requiredExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-        if (runOnMacOS) {
-            requiredExtensions.push_back("VK_KHR_portability_subset");
-        }
-
-        // Populate available extensions and selection map
-        for (const auto& ext : extensions) {
-            std::string extName = ext.extensionName;
-            availableExtensions.push_back(extName);
-            extensionSelection[extName] = false;  // Default unchecked
-        }
-
-        // Ensure required extensions are always enabled and appear first
-        for (const auto& required : requiredExtensions) {
-            extensionSelection[required] = true;  // Always enabled
-        }
-
-        //LOG_INFO("Found %u available device extensions.", extensionCount);
-    }
-
-
     void createImguiWindow() {
         int width, height;
         SDL_GetWindowSize(window, &width, &height); // Get real-time window size
@@ -397,138 +331,27 @@ private:
 
         if (ImGui::BeginTabBar("MainTabBar")) {
             if (ImGui::BeginTabItem("Instance")) {
-                ImGui::Text("Application Name:");
-                static char appName[256] = "";
-                ImGui::InputText("##appName", appName, IM_ARRAYSIZE(appName));
-
-                static bool showDebug = true;
-                ImGui::Checkbox("Show Validation Layer Debug Info", &showDebug);
-
-                static bool runOnLinux = true;
-                //static bool runOnMacOS = false;
-                static bool runOnWindows = false;
-
-                ImGui::Checkbox("Run on Linux", &runOnLinux);
-                ImGui::Checkbox("Run on MacOS", &runOnMacOS);
-                ImGui::Checkbox("Run on Windows", &runOnWindows);
-
-                ImGui::EndTabItem();
+            	showInstanceView();
             }
 
             if (ImGui::BeginTabItem("Physical Device")) {
-                ImGui::Text("Select a Physical Device:");
-
-                // Convert vector<string> to vector<const char*>
-                std::vector<const char*> gpuNamesCStr;
-                for (const auto& name : gpuNames)
-                	gpuNamesCStr.push_back(name.c_str());
-
-                if (ImGui::Combo("##gpuSelector", &selectedGPU, gpuNamesCStr.data(), gpuNamesCStr.size())) {
-                	context->physicalDevice = physicalDevices[selectedGPU];
-                    vkGetPhysicalDeviceProperties(context->physicalDevice, &context->physicalDeviceProperties);
-                }
-
-                ImGui::Text("Device Properties:");
-                ImGui::Text("Memory: %u MB", context->physicalDeviceProperties.limits.maxMemoryAllocationCount);
-                ImGui::Text("Compute Units: %u", context->physicalDeviceProperties.limits.maxComputeSharedMemorySize);
-
-                ImGui::EndTabItem();
+                showPhysicalDeviceView(context);
             }
 
             if (ImGui::BeginTabItem("Logical Device")) {
-                ImGui::Text("Queue Families:");
-                static bool graphicsQueue = true;
-                static bool computeQueue = false;
-                ImGui::Checkbox("Graphics Queue", &graphicsQueue);
-                ImGui::Checkbox("Compute Queue", &computeQueue);
-
-                ImGui::Text("Extensions:");
-                // Separate required and optional extensions
-                std::vector<std::string> requiredExtensions;
-                std::vector<std::string> optionalExtensions;
-
-                for (const auto& ext : availableExtensions) {
-                	if (ext == VK_KHR_SWAPCHAIN_EXTENSION_NAME) {
-                   		requiredExtensions.push_back(ext);
-                 	} else {
-                        optionalExtensions.push_back(ext);
-                    }
-                	if(runOnMacOS) {
-                 		if (ext == "VK_KHR_portability_subset") {
-                   			requiredExtensions.push_back(ext);
-                   		}
-                 	}
-                }
-
-                // Display required extensions in bold, without checkboxes
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 0, 1));  // Yellow color for required
-                for (const auto& ext : requiredExtensions) {
-                    ImGui::Text("** %s ** (Required)", ext.c_str());
-                }
-                ImGui::PopStyleColor();
-
-                // Display optional extensions as checkboxes
-                for (const auto& ext : optionalExtensions) {
-                    bool checked = extensionSelection[ext];
-                    if (ImGui::Checkbox(ext.c_str(), &checked)) {
-                        extensionSelection[ext] = checked;
-                    }
-                }
-
-                ImGui::EndTabItem();
+                showLogicalDeviceView();
             }
 
             if (ImGui::BeginTabItem("Swapchain")) {
-                ImGui::Text("Choose Swapchain Settings:");
-
-                static int swapchainImageCount = 3;
-                ImGui::SliderInt("Image Count", &swapchainImageCount, 2, 8);
-
-                static int vsyncMode = 0;
-                const char* vsyncOptions[] = { "Immediate", "Mailbox", "Fifo", "Fifo Relaxed" };
-                ImGui::Combo("VSync Mode", &vsyncMode, vsyncOptions, IM_ARRAYSIZE(vsyncOptions));
-
-                ImGui::EndTabItem();
+            	showSwapchainView(window);
             }
 
             if (ImGui::BeginTabItem("Model")) {
-                static char modelPath[256] = "models/viking_room.obj";
-                static char texturePath[256] = "textures/viking_room.png";
-
-                ImGui::Text("Model File:");
-                ImGui::InputText("##modelFile", modelPath, IM_ARRAYSIZE(modelPath));
-                ImGui::SameLine();
-                if (ImGui::Button("...")) {
-                    // Open file dialog
-                }
-
-                ImGui::Text("Texture File:");
-                ImGui::InputText("##textureFile", texturePath, IM_ARRAYSIZE(texturePath));
-                ImGui::SameLine();
-                if (ImGui::Button("...")) {
-                    // Open file dialog
-                }
-
-                if (ImGui::Button("Load Model")) {
-                    // Load model logic
-                }
-
-                ImGui::EndTabItem();
+            	showModelView();
             }
 
             if (ImGui::BeginTabItem("Graphics Pipeline")) {
-                static bool enableWireframe = false;
-                static int renderMode = 0;
-                const char* renderModes[] = { "Lit", "Wireframe", "Normals" };
-
-                ImGui::Checkbox("Enable Wireframe", &enableWireframe);
-                ImGui::Combo("Render Mode", &renderMode, renderModes, IM_ARRAYSIZE(renderModes));
-
-                if (ImGui::Button("Rebuild Pipeline")) {
-                    // Rebuild pipeline logic
-                }
-
-                ImGui::EndTabItem();
+                showPipelineView();
             }
 
             ImGui::EndTabBar();

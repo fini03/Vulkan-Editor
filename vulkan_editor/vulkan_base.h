@@ -69,6 +69,7 @@ public:
 
 class VulkanPipeline {
 public:
+	std::string name;
 	VkPipeline pipeline;
 	VkPipelineLayout pipelineLayout;
 
