@@ -1,4 +1,5 @@
 #include "imgui/imgui.h"
+#include "tinyfiledialogs.h"
 #include "vulkan_editor/vulkan_base.h"
 #include <SDL3/SDL_video.h>
 #include <map>
@@ -133,74 +134,72 @@ void showLogicalDeviceView() {
 }
 
 void showSwapchainView(SDL_Window* window) {
- ImGui::Text("Swapchain Settings:");
+	ImGui::Text("Swapchain Settings:");
 
-                // Fetch SDL Window Size
-                int windowWidth = 0, windowHeight = 0;
-                SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+	// Fetch SDL Window Size
+    int windowWidth = 0, windowHeight = 0;
+    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
 
-                // Display Image Dimensions (Non-Editable)
-                ImGui::Text("Image Dimensions:");
-                ImGui::SameLine();
-                ImGui::Text("Height: %d  Width: %d", windowHeight, windowWidth);
+    // Display Image Dimensions (Non-Editable)
+    ImGui::Text("Image Dimensions:");
+    ImGui::SameLine();
+    ImGui::Text("Height: %d  Width: %d", windowHeight, windowWidth);
 
-                // Image Clear Color
-                ImGui::Text("Image Clear Color:");
-                static float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-                ImGui::ColorEdit4("Clear Color", clearColor);
+    // Image Clear Color
+    ImGui::Text("Image Clear Color:");
+    static float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    ImGui::ColorEdit4("Clear Color", clearColor);
 
-                // Frames in Flight
-                static int framesInFlight = 2;
-                ImGui::SliderInt("Frames in Flight", &framesInFlight, 1, 3);
+    // Frames in Flight
+    static int framesInFlight = 2;
+    ImGui::SliderInt("Frames in Flight", &framesInFlight, 1, 3);
 
+    // Swapchain Image Count
+    static int swapchainImageCount = 3;
+    ImGui::SliderInt("Swapchain Image Count", &swapchainImageCount, 2, 8);
 
-                // Swapchain Image Count
-                static int swapchainImageCount = 3;
-                ImGui::SliderInt("Swapchain Image Count", &swapchainImageCount, 2, 8);
+    // VSync Mode Selection
+    static int vsyncMode = 1;
+    const char* vsyncOptions[] = { "Immediate", "Mailbox", "Fifo", "Fifo Relaxed" };
+    ImGui::Combo("VSync Mode", &vsyncMode, vsyncOptions, IM_ARRAYSIZE(vsyncOptions));
 
-                // VSync Mode Selection
-                static int vsyncMode = 1;
-                const char* vsyncOptions[] = { "Immediate", "Mailbox", "Fifo", "Fifo Relaxed" };
-                ImGui::Combo("VSync Mode", &vsyncMode, vsyncOptions, IM_ARRAYSIZE(vsyncOptions));
+    // Image Usage Selection
+    static int imageUsage = 0;
+    const char* imageUsageOptions[] = {
+        "VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT",
+        "VK_IMAGE_USAGE_TRANSFER_SRC_BIT",
+        "VK_IMAGE_USAGE_TRANSFER_DST_BIT"
+    };
+    ImGui::Combo("Image Usage", &imageUsage, imageUsageOptions, IM_ARRAYSIZE(imageUsageOptions));
 
-                // Image Usage Selection
-                static int imageUsage = 0;
-                const char* imageUsageOptions[] = {
-                    "VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT",
-                    "VK_IMAGE_USAGE_TRANSFER_SRC_BIT",
-                    "VK_IMAGE_USAGE_TRANSFER_DST_BIT"
-                };
-                ImGui::Combo("Image Usage", &imageUsage, imageUsageOptions, IM_ARRAYSIZE(imageUsageOptions));
+    // Presentation Mode Selection
+    static int presentMode = 1;
+    const char* presentModeOptions[] = {
+        "VK_PRESENT_MODE_IMMEDIATE_KHR",
+        "VK_PRESENT_MODE_MAILBOX_KHR",
+        "VK_PRESENT_MODE_FIFO_KHR",
+        "VK_PRESENT_MODE_FIFO_RELAXED_KHR"
+    };
+    ImGui::Combo("Presentation Mode", &presentMode, presentModeOptions, IM_ARRAYSIZE(presentModeOptions));
 
-                // Presentation Mode Selection
-                static int presentMode = 1;
-                const char* presentModeOptions[] = {
-                    "VK_PRESENT_MODE_IMMEDIATE_KHR",
-                    "VK_PRESENT_MODE_MAILBOX_KHR",
-                    "VK_PRESENT_MODE_FIFO_KHR",
-                    "VK_PRESENT_MODE_FIFO_RELAXED_KHR"
-                };
-                ImGui::Combo("Presentation Mode", &presentMode, presentModeOptions, IM_ARRAYSIZE(presentModeOptions));
+    // Image Format Selection
+    static int imageFormat = 0;
+    const char* imageFormatOptions[] = {
+        "VK_FORMAT_B8G8R8A8_UNORM",
+        "VK_FORMAT_B8G8R8A8_SRGB",
+        "VK_FORMAT_R8G8B8A8_SRGB"
+    };
+    ImGui::Combo("Image Format", &imageFormat, imageFormatOptions, IM_ARRAYSIZE(imageFormatOptions));
 
-                // Image Format Selection
-                static int imageFormat = 0;
-                const char* imageFormatOptions[] = {
-                    "VK_FORMAT_B8G8R8A8_UNORM",
-                    "VK_FORMAT_B8G8R8A8_SRGB",
-                    "VK_FORMAT_R8G8B8A8_SRGB"
-                };
-                ImGui::Combo("Image Format", &imageFormat, imageFormatOptions, IM_ARRAYSIZE(imageFormatOptions));
+    // Image Color Space Selection
+    static int imageColorSpace = 0;
+    const char* imageColorSpaceOptions[] = {
+        "VK_COLORSPACE_SRGB_NONLINEAR_KHR"
+    };
+    ImGui::Combo("Image Color Space", &imageColorSpace, imageColorSpaceOptions, IM_ARRAYSIZE(imageColorSpaceOptions));
 
-                // Image Color Space Selection
-                static int imageColorSpace = 0;
-                const char* imageColorSpaceOptions[] = {
-                    "VK_COLORSPACE_SRGB_NONLINEAR_KHR"
-                };
-                ImGui::Combo("Image Color Space", &imageColorSpace, imageColorSpaceOptions, IM_ARRAYSIZE(imageColorSpaceOptions));
-
-                ImGui::EndTabItem();
+    ImGui::EndTabItem();
 }
-#include "tinyfiledialogs.h"
 
 void showModelView() {
     static char modelPath[256] = "models/viking_room.obj";
@@ -235,7 +234,6 @@ void showModelView() {
 }
 
 void showShaderFileSelector() {
-    ImGui::Text("Shaders");
     const char* filter[] = { "*.vert", "*.spv", "*.glsl", "*.txt", "*.*" }; // Shader file filters
     static char vertexShaderPath[256] = "path/to/shader.vert";
     ImGui::InputText("Vertex Shader File", vertexShaderPath, IM_ARRAYSIZE(vertexShaderPath));
@@ -264,155 +262,185 @@ void showShaderFileSelector() {
     ImGui::InputText("Fragment Shader Entry Function", fragmentEntryName, IM_ARRAYSIZE(fragmentEntryName));
 }
 
+void showPipelineList(int& selectedPipeline, std::vector<std::string>& pipelineNames) {
+    if (ImGui::BeginListBox("##PipelineList", ImVec2(200, 200))) {
+        for (int i = 0; i < pipelineNames.size(); ++i) {
+            if (ImGui::Selectable(pipelineNames[i].c_str(), selectedPipeline == i)) {
+                selectedPipeline = i;
+            }
+        }
+        ImGui::EndListBox();
+    }
+}
+
+void showPipelineButtons(int& selectedPipeline, std::vector<std::string>& pipelineNames) {
+    if (ImGui::Button("Add Pipeline", ImVec2(200, 0))) {
+        pipelineNames.push_back("Graphics Pipeline " + std::to_string(pipelineNames.size() + 1));
+    }
+    if (ImGui::Button("Edit Pipeline", ImVec2(200, 0)) && !pipelineNames.empty()) {
+        ImGui::OpenPopup("Edit Graphics Pipeline");
+    }
+    if (ImGui::Button("Delete Pipeline", ImVec2(200, 0)) && !pipelineNames.empty()) {
+        pipelineNames.erase(pipelineNames.begin() + selectedPipeline);
+        selectedPipeline = std::max(0, selectedPipeline - 1);
+    }
+}
+
+void showInputAssemblySettings() {
+    ImGui::Text("Input Assembly");
+    static int topology = 0;
+    const char* topologyOptions[] = { "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST", "VK_PRIMITIVE_TOPOLOGY_LINE_LIST" };
+    ImGui::Combo("Vertex Topology", &topology, topologyOptions, IM_ARRAYSIZE(topologyOptions));
+
+    static bool primitiveRestart = false;
+    ImGui::Checkbox("Primitive Restart", &primitiveRestart);
+}
+
+void showRasterizerSettings() {
+    ImGui::Separator();
+    ImGui::Text("Rasterizer");
+    static bool depthClamp = false, rasterizerDiscard = false;
+    ImGui::Checkbox("Depth Clamp", &depthClamp);
+    ImGui::Checkbox("Rasterizer Discard", &rasterizerDiscard);
+
+    static int polygonMode = 0;
+    const char* polygonModes[] = { "VK_POLYGON_MODE_FILL", "VK_POLYGON_MODE_LINE" };
+    ImGui::Combo("Polygon Mode", &polygonMode, polygonModes, IM_ARRAYSIZE(polygonModes));
+
+    static float lineWidth = 1.0f;
+    ImGui::InputFloat("Line Width", &lineWidth);
+
+    static int cullMode = 0;
+    const char* cullModes[] = { "VK_CULL_MODE_NONE", "VK_CULL_MODE_BACK_BIT" };
+    ImGui::Combo("Cull Mode", &cullMode, cullModes, IM_ARRAYSIZE(cullModes));
+
+    static int frontFace = 0;
+    const char* frontFaceOptions[] = { "VK_FRONT_FACE_CLOCKWISE", "VK_FRONT_FACE_COUNTER_CLOCKWISE" };
+    ImGui::Combo("Front Face", &frontFace, frontFaceOptions, IM_ARRAYSIZE(frontFaceOptions));
+
+    static bool depthBiasEnabled = false;
+    ImGui::Checkbox("Depth Bias Enabled", &depthBiasEnabled);
+
+    static float depthBiasConstantFactor = 0.0f, depthBiasClamp = 0.0f, depthBiasSlopeFactor = 0.0f;
+    ImGui::InputFloat("Depth Bias Constant Factor", &depthBiasConstantFactor);
+    ImGui::InputFloat("Depth Bias Clamp", &depthBiasClamp);
+    ImGui::InputFloat("Depth Bias Slope Factor", &depthBiasSlopeFactor);
+}
+
+void showDepthStencilSettings() {
+    ImGui::Separator();
+    ImGui::Text("Depth & Stencil");
+    static bool depthTest = true, depthWrite = true;
+    ImGui::Checkbox("Depth Test", &depthTest);
+    ImGui::Checkbox("Depth Write", &depthWrite);
+    static int depthCompareOp = 0;
+    const char* depthCompareOptions[] = { "VK_COMPARE_OP_LESS", "VK_COMPARE_OP_GREATER" };
+    ImGui::Combo("Depth Compare Operation", &depthCompareOp, depthCompareOptions, IM_ARRAYSIZE(depthCompareOptions));
+
+    static bool depthBoundsTest = false;
+    ImGui::Checkbox("Depth Bounds Test", &depthBoundsTest);
+
+    static float depthBoundsMin = 0.0f, depthBoundsMax = 0.0f;
+    ImGui::InputFloat("Depth Bounds Min", &depthBoundsMin);
+    ImGui::InputFloat("Depth Bounds Max", &depthBoundsMax);
+
+    static bool stencilTest = false;
+    ImGui::Checkbox("Stencil Test", &stencilTest);
+}
+
+void showMultisamplingSettings() {
+    ImGui::Separator();
+    ImGui::Text("Multisampling");
+    static bool sampleShading = false;
+    ImGui::Checkbox("Sample Shading", &sampleShading);
+
+    static int rasterizationSamples = 0;
+    const char* sampleCountOptions[] = { "VK_SAMPLE_COUNT_1_BIT", "VK_SAMPLE_COUNT_4_BIT" };
+    ImGui::Combo("Rasterization Samples", &rasterizationSamples, sampleCountOptions, IM_ARRAYSIZE(sampleCountOptions));
+
+    static float minSampleShading = 0.0f;
+    ImGui::InputFloat("Min Sample Shading", &minSampleShading);
+
+    static bool alphaToCoverage = false, alphaToOne = false;
+    ImGui::Checkbox("Alpha to Coverage", &alphaToCoverage);
+    ImGui::Checkbox("Alpha to One", &alphaToOne);
+}
+
+void showColorBlendingSettings() {
+    ImGui::Separator();
+    ImGui::Text("Color Blending");
+
+    static int colorWriteMask = 0xF;
+    const char* colorWriteMaskOptions[] = { "VK_COLOR_COMPONENT_R_BIT", "VK_COLOR_COMPONENT_G_BIT", "VK_COLOR_COMPONENT_B_BIT", "VK_COLOR_COMPONENT_A_BIT" };
+    ImGui::Combo("Color Write Mask", &colorWriteMask, colorWriteMaskOptions, IM_ARRAYSIZE(colorWriteMaskOptions));
+
+    static bool colorBlend = false;
+    ImGui::Checkbox("Color Blend", &colorBlend);
+
+    static int srcColorBlendFactor = 0, dstColorBlendFactor = 0, colorBlendOp = 0;
+    static int srcAlphaBlendFactor = 0, dstAlphaBlendFactor = 0, alphaBlendOp = 0;
+
+    const char* blendFactors[] = { "VK_BLEND_FACTOR_ONE", "VK_BLEND_FACTOR_ZERO" };
+    const char* blendOps[] = { "VK_BLEND_OP_ADD", "VK_BLEND_OP_SUBTRACT" };
+
+    ImGui::Combo("Source Color Blend Factor", &srcColorBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
+    ImGui::Combo("Destination Color Blend Factor", &dstColorBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
+    ImGui::Combo("Color Blend Operation", &colorBlendOp, blendOps, IM_ARRAYSIZE(blendOps));
+
+    ImGui::Combo("Source Alpha Blend Factor", &srcAlphaBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
+    ImGui::Combo("Destination Alpha Blend Factor", &dstAlphaBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
+    ImGui::Combo("Alpha Blend Operation", &alphaBlendOp, blendOps, IM_ARRAYSIZE(blendOps));
+
+    static bool logicOpEnable = false;
+    ImGui::Checkbox("Logic Operation Enabled", &logicOpEnable);
+
+    static int logicOp = 0;
+    const char* logicOps[] = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
+    ImGui::Combo("Logic Operation", &logicOp, logicOps, IM_ARRAYSIZE(logicOps));
+
+    static int attachmentCount = 1;
+    ImGui::InputInt("Attachment Count", &attachmentCount);
+
+    static float blendConstants[4] = { 0.0f, 1.0f, 2.0f, 3.0f };
+    ImGui::InputFloat4("Color Blend Constants", blendConstants);
+}
+
+void showShaderSettings() {
+    ImGui::Separator();
+    ImGui::Text("Shaders");
+    showShaderFileSelector();
+}
+
+void showEditPipelineModal() {
+    if (ImGui::BeginPopupModal("Edit Graphics Pipeline", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        showInputAssemblySettings();
+        showRasterizerSettings();
+        showDepthStencilSettings();
+        showMultisamplingSettings();
+        showColorBlendingSettings();
+        showShaderSettings();
+
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            // Save pipeline settings here
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
 void showPipelineView() {
-	ImGui::Text("Pipelines");
+    ImGui::Text("Pipelines");
+    static int selectedPipeline = 0;
+    static std::vector<std::string> pipelineNames;
 
-                // List of pipelines
-                static int selectedPipeline = 0;
-                static std::vector<std::string> pipelineNames;
+    showPipelineList(selectedPipeline, pipelineNames);
+    showPipelineButtons(selectedPipeline, pipelineNames);
+    showEditPipelineModal();
 
-                if (ImGui::BeginListBox("##PipelineList", ImVec2(200, 200))) {
-                    for (int i = 0; i < pipelineNames.size(); ++i) {
-                        if (ImGui::Selectable(pipelineNames[i].c_str(), selectedPipeline == i)) {
-                            selectedPipeline = i;
-                        }
-                    }
-                    ImGui::EndListBox();
-                }
-
-                // Buttons
-                if (ImGui::Button("Add Pipeline", ImVec2(200, 0))) {
-                    pipelineNames.push_back("Graphics Pipeline " + std::to_string(pipelineNames.size() + 1));
-                }
-                if (ImGui::Button("Edit Pipeline", ImVec2(200, 0)) && !pipelineNames.empty()) {
-                    ImGui::OpenPopup("Edit Graphics Pipeline");
-                }
-                if (ImGui::Button("Delete Pipeline", ImVec2(200, 0)) && !pipelineNames.empty()) {
-                    pipelineNames.erase(pipelineNames.begin() + selectedPipeline);
-                    selectedPipeline = std::max(0, selectedPipeline - 1);
-                }
-
-                if (ImGui::BeginPopupModal("Edit Graphics Pipeline", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-                ImGui::Text("Input Assembly");
-                    static int topology = 0;
-                    const char* topologyOptions[] = { "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST", "VK_PRIMITIVE_TOPOLOGY_LINE_LIST" };
-                    ImGui::Combo("Vertex Topology", &topology, topologyOptions, IM_ARRAYSIZE(topologyOptions));
-
-                    static bool primitiveRestart = false;
-                    ImGui::Checkbox("Primitive Restart", &primitiveRestart);
-
-                    ImGui::Separator();
-                    ImGui::Text("Rasterizer");
-                    static bool depthClamp = false, rasterizerDiscard = false;
-                    ImGui::Checkbox("Depth Clamp", &depthClamp);
-                    ImGui::Checkbox("Rasterizer Discard", &rasterizerDiscard);
-
-                    static int polygonMode = 0;
-                    const char* polygonModes[] = { "VK_POLYGON_MODE_FILL", "VK_POLYGON_MODE_LINE" };
-                    ImGui::Combo("Polygon Mode", &polygonMode, polygonModes, IM_ARRAYSIZE(polygonModes));
-
-                    static float lineWidth = 1.0f;
-                    ImGui::InputFloat("Line Width", &lineWidth);
-
-                    static int cullMode = 0;
-                    const char* cullModes[] = { "VK_CULL_MODE_NONE", "VK_CULL_MODE_BACK_BIT" };
-                    ImGui::Combo("Cull Mode", &cullMode, cullModes, IM_ARRAYSIZE(cullModes));
-
-                    static int frontFace = 0;
-                    const char* frontFaceOptions[] = { "VK_FRONT_FACE_CLOCKWISE", "VK_FRONT_FACE_COUNTER_CLOCKWISE" };
-                    ImGui::Combo("Front Face", &frontFace, frontFaceOptions, IM_ARRAYSIZE(frontFaceOptions));
-
-                    static bool depthBiasEnabled = false;
-                    ImGui::Checkbox("Depth Bias Enabled", &depthBiasEnabled);
-
-                    static float depthBiasConstantFactor = 0.0f, depthBiasClamp = 0.0f, depthBiasSlopeFactor = 0.0f;
-                    ImGui::InputFloat("Depth Bias Constant Factor", &depthBiasConstantFactor);
-                    ImGui::InputFloat("Depth Bias Clamp", &depthBiasClamp);
-                    ImGui::InputFloat("Depth Bias Slope Factor", &depthBiasSlopeFactor);
-
-                    ImGui::Separator();
-                    ImGui::Text("Depth & Stencil");
-                    static bool depthTest = true, depthWrite = true;
-                    ImGui::Checkbox("Depth Test", &depthTest);
-                    ImGui::Checkbox("Depth Write", &depthWrite);
-
-                    static int depthCompareOp = 0;
-                    const char* depthCompareOptions[] = { "VK_COMPARE_OP_LESS", "VK_COMPARE_OP_GREATER" };
-                    ImGui::Combo("Depth Compare Operation", &depthCompareOp, depthCompareOptions, IM_ARRAYSIZE(depthCompareOptions));
-
-                    static bool depthBoundsTest = false;
-                    ImGui::Checkbox("Depth Bounds Test", &depthBoundsTest);
-
-                    static float depthBoundsMin = 0.0f, depthBoundsMax = 0.0f;
-                    ImGui::InputFloat("Depth Bounds Min", &depthBoundsMin);
-                    ImGui::InputFloat("Depth Bounds Max", &depthBoundsMax);
-
-                    static bool stencilTest = false;
-                    ImGui::Checkbox("Stencil Test", &stencilTest);
-
-                    ImGui::Separator();
-                    ImGui::Text("Multisampling");
-                    static bool sampleShading = false;
-                    ImGui::Checkbox("Sample Shading", &sampleShading);
-
-                    static int rasterizationSamples = 0;
-                    const char* sampleCountOptions[] = { "VK_SAMPLE_COUNT_1_BIT", "VK_SAMPLE_COUNT_4_BIT" };
-                    ImGui::Combo("Rasterization Samples", &rasterizationSamples, sampleCountOptions, IM_ARRAYSIZE(sampleCountOptions));
-
-                    static float minSampleShading = 0.0f;
-                    ImGui::InputFloat("Min Sample Shading", &minSampleShading);
-
-                    static bool alphaToCoverage = false, alphaToOne = false;
-                    ImGui::Checkbox("Alpha to Coverage", &alphaToCoverage);
-                    ImGui::Checkbox("Alpha to One", &alphaToOne);
-
-                    ImGui::Separator();
-                    ImGui::Text("Color Blending");
-                    static bool colorBlend = false;
-                    ImGui::Checkbox("Color Blend", &colorBlend);
-
-                    static int srcColorBlendFactor = 0, dstColorBlendFactor = 0, colorBlendOp = 0;
-                    static int srcAlphaBlendFactor = 0, dstAlphaBlendFactor = 0, alphaBlendOp = 0;
-
-                    const char* blendFactors[] = { "VK_BLEND_FACTOR_ONE", "VK_BLEND_FACTOR_ZERO" };
-                    const char* blendOps[] = { "VK_BLEND_OP_ADD", "VK_BLEND_OP_SUBTRACT" };
-
-                    ImGui::Combo("Source Color Blend Factor", &srcColorBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
-                    ImGui::Combo("Destination Color Blend Factor", &dstColorBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
-                    ImGui::Combo("Color Blend Operation", &colorBlendOp, blendOps, IM_ARRAYSIZE(blendOps));
-
-                    ImGui::Combo("Source Alpha Blend Factor", &srcAlphaBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
-                    ImGui::Combo("Destination Alpha Blend Factor", &dstAlphaBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
-                    ImGui::Combo("Alpha Blend Operation", &alphaBlendOp, blendOps, IM_ARRAYSIZE(blendOps));
-
-                    static bool logicOpEnable = false;
-                    ImGui::Checkbox("Logic Operation Enabled", &logicOpEnable);
-
-                    static int logicOp = 0;
-                    const char* logicOps[] = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
-                    ImGui::Combo("Logic Operation", &logicOp, logicOps, IM_ARRAYSIZE(logicOps));
-
-                    static int attachmentCount = 1;
-                    ImGui::InputInt("Attachment Count", &attachmentCount);
-
-                    static float blendConstants[4] = { 0.0f, 1.0f, 2.0f, 3.0f };
-                    ImGui::InputFloat4("Color Blend Constants", blendConstants);
-
-                    ImGui::Separator();
-                    ImGui::Text("Shaders");
-                    showShaderFileSelector();
-
-                    if (ImGui::Button("OK", ImVec2(120, 0))) {
-                        // Save pipeline settings here
-                        ImGui::CloseCurrentPopup();
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Cancel", ImVec2(120, 0))) {
-                        ImGui::CloseCurrentPopup();
-                    }
-
-                    ImGui::EndPopup();
-                }
-
-                ImGui::EndTabItem();
+    ImGui::EndTabItem();
 }
