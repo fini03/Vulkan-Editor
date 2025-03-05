@@ -32,7 +32,7 @@ vulkan_files = files(
 )
 
 # Source Files
-source_files = files('main.cpp') + files('libs/tinyfiledialogs.cpp') + vulkan_files + imgui_files
+source_files = files('main.cpp') + files('libs/tinyfiledialogs.cpp', 'libs/tinyxml2.cpp') + vulkan_files + imgui_files
 
 # Executable
 executable(

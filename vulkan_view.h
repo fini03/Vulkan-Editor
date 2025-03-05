@@ -4,23 +4,63 @@
 #include <SDL3/SDL_video.h>
 #include <map>
 
+#include "libs/tinyxml2.h"
+#include <fstream>
+
+static bool runOnLinux = true;
+static bool runOnMacOS = false;
+static bool runOnWindows = false;
+static bool showDebug = true;
+static char appName[256] = "";
+
 void showInstanceView() {
 	ImGui::Text("Application Name:");
-    static char appName[256] = "";
+
     ImGui::InputText("##appName", appName, IM_ARRAYSIZE(appName));
 
-    static bool showDebug = true;
+
     ImGui::Checkbox("Show Validation Layer Debug Info", &showDebug);
 
-    static bool runOnLinux = true;
-    static bool runOnMacOS = false;
-    static bool runOnWindows = false;
+
 
     ImGui::Checkbox("Run on Linux", &runOnLinux);
     ImGui::Checkbox("Run on MacOS", &runOnMacOS);
     ImGui::Checkbox("Run on Windows", &runOnWindows);
 
     ImGui::EndTabItem();
+}
+
+void saveToXML() {
+    tinyxml2::XMLDocument doc;
+
+    // Root element
+    tinyxml2::XMLElement* root = doc.NewElement("Instance");
+    doc.InsertFirstChild(root);
+
+    // Application Name
+    tinyxml2::XMLElement* nameElement = doc.NewElement("AppName");
+    nameElement->SetText(appName);
+    root->InsertEndChild(nameElement);
+
+    // Debug Option
+    tinyxml2::XMLElement* debugElement = doc.NewElement("ShowDebug");
+    debugElement->SetText(showDebug);
+    root->InsertEndChild(debugElement);
+
+    // OS Options
+    tinyxml2::XMLElement* linuxElement = doc.NewElement("RunOnLinux");
+    linuxElement->SetText(runOnLinux);
+    root->InsertEndChild(linuxElement);
+
+    tinyxml2::XMLElement* macElement = doc.NewElement("RunOnMacOS");
+    macElement->SetText(runOnMacOS);
+    root->InsertEndChild(macElement);
+
+    tinyxml2::XMLElement* windowsElement = doc.NewElement("RunOnWindows");
+    windowsElement->SetText(runOnWindows);
+    root->InsertEndChild(windowsElement);
+
+    doc.SaveFile("vulkan.xml");
 }
 
 std::vector<std::string> gpuNames;
@@ -73,7 +113,6 @@ void showPhysicalDeviceView(VulkanContext* context) {
 
 std::vector<std::string> availableExtensions;
 std::map<std::string, bool> extensionSelection;
-bool runOnMacOS = false;
 
 void queryDeviceExtensions(VkPhysicalDevice physicalDevice) {
     uint32_t extensionCount = 0;

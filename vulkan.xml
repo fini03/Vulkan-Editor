@@ -1,0 +1,7 @@
+<Instance>
+    <AppName>quackie</AppName>
+    <ShowDebug>true</ShowDebug>
+    <RunOnLinux>true</RunOnLinux>
+    <RunOnMacOS>false</RunOnMacOS>
+    <RunOnWindows>false</RunOnWindows>
+</Instance>

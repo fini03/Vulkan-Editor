@@ -70,6 +70,7 @@ private:
     SDL_Window* window = {};
 
     VulkanContext* context = new VulkanContext();
+    VulkanContext* editorContext = new VulkanContext();
 
     VkSurfaceKHR surface = {};
 
@@ -361,7 +362,7 @@ private:
         ImGui::SetCursorPosY(height - 60); // Align near bottom
         ImGui::Separator();
         if (ImGui::Button("Generate GVE Project Header", ImVec2(ImGui::GetContentRegionAvail().x, 40))) {
-            // Handle button press
+        	saveToXML();
         }
 
         ImGui::End();
