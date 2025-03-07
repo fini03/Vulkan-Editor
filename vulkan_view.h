@@ -13,6 +13,168 @@ static bool runOnWindows = false;
 static bool showDebug = true;
 static char appName[256] = "";
 
+std::vector<std::string> gpuNames;
+std::vector<VkPhysicalDevice> physicalDevices;
+int selectedGPU = 0;
+
+std::vector<std::string> availableExtensions;
+std::map<std::string, bool> extensionSelection;
+
+static bool graphicsQueue = true;
+static bool computeQueue = false;
+
+static float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+static int framesInFlight = 2;
+static int swapchainImageCount = 3;
+static int imageUsage = 0;
+const char* imageUsageOptions[] = {
+        "VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT",
+        "VK_IMAGE_USAGE_TRANSFER_SRC_BIT",
+        "VK_IMAGE_USAGE_TRANSFER_DST_BIT"
+    };
+static int presentMode = 1;
+const char* presentModeOptions[] = {
+        "VK_PRESENT_MODE_IMMEDIATE_KHR",
+        "VK_PRESENT_MODE_MAILBOX_KHR",
+        "VK_PRESENT_MODE_FIFO_KHR",
+        "VK_PRESENT_MODE_FIFO_RELAXED_KHR"
+    };
+static int imageFormat = 0;
+const char* imageFormatOptions[] = {
+    "VK_FORMAT_B8G8R8A8_UNORM",
+    "VK_FORMAT_B8G8R8A8_SRGB",
+    "VK_FORMAT_R8G8B8A8_SRGB"
+};
+static int imageColorSpace = 0;
+const char* imageColorSpaceOptions[] = {
+    "VK_COLORSPACE_SRGB_NONLINEAR_KHR"
+};
+
+void savePhysicalDeviceSettings(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root, int selectedGPU, const std::vector<std::string>& gpuNames) {
+    tinyxml2::XMLElement* deviceElement = doc.NewElement("PhysicalDevice");
+    deviceElement->SetAttribute("SelectedGPU", selectedGPU);
+    deviceElement->SetText(gpuNames[selectedGPU].c_str());
+    root->InsertEndChild(deviceElement);
+}
+
+void saveDeviceExtensions(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root, const std::map<std::string, bool>& extensionSelection) {
+    tinyxml2::XMLElement* extensionsElement = doc.NewElement("DeviceExtensions");
+    for (const auto& ext : extensionSelection) {
+        tinyxml2::XMLElement* extElement = doc.NewElement("Extension");
+        extElement->SetAttribute("name", ext.first.c_str());
+        extElement->SetAttribute("enabled", ext.second);
+        extensionsElement->InsertEndChild(extElement);
+    }
+    root->InsertEndChild(extensionsElement);
+}
+
+void saveLogicalDeviceSettings(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root, bool graphicsQueue, bool computeQueue) {
+    tinyxml2::XMLElement* logicalDeviceElement = doc.NewElement("LogicalDevice");
+
+    tinyxml2::XMLElement* graphicsElement = doc.NewElement("GraphicsQueue");
+    graphicsElement->SetText(graphicsQueue);
+    logicalDeviceElement->InsertEndChild(graphicsElement);
+
+    tinyxml2::XMLElement* computeElement = doc.NewElement("ComputeQueue");
+    computeElement->SetText(computeQueue);
+    logicalDeviceElement->InsertEndChild(computeElement);
+
+    root->InsertEndChild(logicalDeviceElement);
+}
+
+void saveSwapchainSettings(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root) {
+    // Create SwapchainSettings element
+    tinyxml2::XMLElement* swapchainElement = doc.NewElement("SwapchainSettings");
+    root->InsertEndChild(swapchainElement);
+
+    // Clear Color
+    tinyxml2::XMLElement* clearColorElement = doc.NewElement("ClearColor");
+    clearColorElement->SetAttribute("name", "ClearColor");
+
+    tinyxml2::XMLElement* rElement = doc.NewElement("clearColorRInput");
+    rElement->SetAttribute("name", "clearColorRInput");
+    rElement->SetText(clearColor[0]);
+    clearColorElement->InsertEndChild(rElement);
+
+    tinyxml2::XMLElement* gElement = doc.NewElement("clearColorGInput");
+    gElement->SetAttribute("name", "clearColorGInput");
+    gElement->SetText(clearColor[1]);
+    clearColorElement->InsertEndChild(gElement);
+
+    tinyxml2::XMLElement* bElement = doc.NewElement("clearColorBInput");
+    bElement->SetAttribute("name", "clearColorBInput");
+    bElement->SetText(clearColor[2]);
+    clearColorElement->InsertEndChild(bElement);
+
+    tinyxml2::XMLElement* aElement = doc.NewElement("clearColorAInput");
+    aElement->SetAttribute("name", "clearColorAInput");
+    aElement->SetText(clearColor[3]);
+    clearColorElement->InsertEndChild(aElement);
+
+    swapchainElement->InsertEndChild(clearColorElement);
+
+    // Frames in Flight
+    tinyxml2::XMLElement* framesElement = doc.NewElement("FramesInFlight");
+    framesElement->SetText(framesInFlight);
+    swapchainElement->InsertEndChild(framesElement);
+
+    // Swapchain Image Count
+    tinyxml2::XMLElement* imageCountElement = doc.NewElement("SwapchainImageCount");
+    imageCountElement->SetText(swapchainImageCount);
+    swapchainElement->InsertEndChild(imageCountElement);
+
+    // Image Usage
+    tinyxml2::XMLElement* usageElement = doc.NewElement("ImageUsage");
+    usageElement->SetText(imageUsageOptions[imageUsage]);
+    swapchainElement->InsertEndChild(usageElement);
+
+    // Presentation Mode
+    tinyxml2::XMLElement* presentElement = doc.NewElement("PresentationMode");
+    presentElement->SetText(presentModeOptions[presentMode]);
+    swapchainElement->InsertEndChild(presentElement);
+
+    // Image Format
+    tinyxml2::XMLElement* formatElement = doc.NewElement("ImageFormat");
+    formatElement->SetText(imageFormatOptions[imageFormat]);
+    swapchainElement->InsertEndChild(formatElement);
+
+    // Image Color Space
+    tinyxml2::XMLElement* colorSpaceElement = doc.NewElement("ImageColorSpace");
+    colorSpaceElement->SetText(imageColorSpaceOptions[imageColorSpace]);
+    swapchainElement->InsertEndChild(colorSpaceElement);
+}
+
+
+void saveToXML() {
+    tinyxml2::XMLDocument doc;
+    tinyxml2::XMLElement* root = doc.NewElement("VulkanSettings");
+    doc.InsertFirstChild(root);
+
+    // General settings
+    tinyxml2::XMLElement* nameElement = doc.NewElement("AppName");
+    nameElement->SetText(appName);
+    root->InsertEndChild(nameElement);
+
+    tinyxml2::XMLElement* debugElement = doc.NewElement("ShowDebug");
+    debugElement->SetText(showDebug);
+    root->InsertEndChild(debugElement);
+
+    tinyxml2::XMLElement* osElement = doc.NewElement("OperatingSystems");
+    osElement->SetAttribute("Linux", runOnLinux);
+    osElement->SetAttribute("MacOS", runOnMacOS);
+    osElement->SetAttribute("Windows", runOnWindows);
+    root->InsertEndChild(osElement);
+
+    // Save Vulkan settings
+    savePhysicalDeviceSettings(doc, root, selectedGPU, gpuNames);
+    saveDeviceExtensions(doc, root, extensionSelection);
+    saveLogicalDeviceSettings(doc, root, graphicsQueue, computeQueue);
+    saveSwapchainSettings(doc, root);
+
+    // Save to file
+    doc.SaveFile("vulkan.xml");
+}
+
 void showInstanceView() {
 	ImGui::Text("Application Name:");
 
@@ -29,43 +191,6 @@ void showInstanceView() {
 
     ImGui::EndTabItem();
 }
-
-void saveToXML() {
-    tinyxml2::XMLDocument doc;
-
-    // Root element
-    tinyxml2::XMLElement* root = doc.NewElement("Instance");
-    doc.InsertFirstChild(root);
-
-    // Application Name
-    tinyxml2::XMLElement* nameElement = doc.NewElement("AppName");
-    nameElement->SetText(appName);
-    root->InsertEndChild(nameElement);
-
-    // Debug Option
-    tinyxml2::XMLElement* debugElement = doc.NewElement("ShowDebug");
-    debugElement->SetText(showDebug);
-    root->InsertEndChild(debugElement);
-
-    // OS Options
-    tinyxml2::XMLElement* linuxElement = doc.NewElement("RunOnLinux");
-    linuxElement->SetText(runOnLinux);
-    root->InsertEndChild(linuxElement);
-
-    tinyxml2::XMLElement* macElement = doc.NewElement("RunOnMacOS");
-    macElement->SetText(runOnMacOS);
-    root->InsertEndChild(macElement);
-
-    tinyxml2::XMLElement* windowsElement = doc.NewElement("RunOnWindows");
-    windowsElement->SetText(runOnWindows);
-    root->InsertEndChild(windowsElement);
-
-    doc.SaveFile("vulkan.xml");
-}
-
-std::vector<std::string> gpuNames;
-std::vector<VkPhysicalDevice> physicalDevices;
-int selectedGPU = 0;
 
 void enumerateGPUs(VulkanContext* context) {
     uint32_t numDevices = 0;
@@ -111,15 +236,11 @@ void showPhysicalDeviceView(VulkanContext* context) {
     ImGui::EndTabItem();
 }
 
-std::vector<std::string> availableExtensions;
-std::map<std::string, bool> extensionSelection;
-
 void queryDeviceExtensions(VkPhysicalDevice physicalDevice) {
     uint32_t extensionCount = 0;
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
 
     if (extensionCount == 0) {
-       // LOG_ERROR("No device extensions found!");
         return;
     }
 
@@ -129,31 +250,19 @@ void queryDeviceExtensions(VkPhysicalDevice physicalDevice) {
     availableExtensions.clear();
     extensionSelection.clear();
 
-    // Required extensions
-    std::vector<std::string> requiredExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    // Only required extensions
+    availableExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    extensionSelection[VK_KHR_SWAPCHAIN_EXTENSION_NAME] = true;
+
     if (runOnMacOS) {
-        requiredExtensions.push_back("VK_KHR_portability_subset");
+        availableExtensions.push_back("VK_KHR_portability_subset");
+        extensionSelection["VK_KHR_portability_subset"] = true;
     }
-
-    // Populate available extensions and selection map
-    for (const auto& ext : extensions) {
-        std::string extName = ext.extensionName;
-        availableExtensions.push_back(extName);
-        extensionSelection[extName] = false;  // Default unchecked
-    }
-
-    // Ensure required extensions are always enabled and appear first
-    for (const auto& required : requiredExtensions) {
-        extensionSelection[required] = true;  // Always enabled
-    }
-
-    //LOG_INFO("Found %u available device extensions.", extensionCount);
 }
+
 
 void showLogicalDeviceView() {
 	ImGui::Text("Queue Families:");
-    static bool graphicsQueue = true;
-    static bool computeQueue = false;
     ImGui::Checkbox("Graphics Queue", &graphicsQueue);
     ImGui::Checkbox("Compute Queue", &computeQueue);
 
@@ -186,55 +295,24 @@ void showSwapchainView(SDL_Window* window) {
 
     // Image Clear Color
     ImGui::Text("Image Clear Color:");
-    static float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     ImGui::ColorEdit4("Clear Color", clearColor);
 
     // Frames in Flight
-    static int framesInFlight = 2;
     ImGui::SliderInt("Frames in Flight", &framesInFlight, 1, 3);
 
     // Swapchain Image Count
-    static int swapchainImageCount = 3;
     ImGui::SliderInt("Swapchain Image Count", &swapchainImageCount, 2, 8);
 
-    // VSync Mode Selection
-    static int vsyncMode = 1;
-    const char* vsyncOptions[] = { "Immediate", "Mailbox", "Fifo", "Fifo Relaxed" };
-    ImGui::Combo("VSync Mode", &vsyncMode, vsyncOptions, IM_ARRAYSIZE(vsyncOptions));
-
     // Image Usage Selection
-    static int imageUsage = 0;
-    const char* imageUsageOptions[] = {
-        "VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT",
-        "VK_IMAGE_USAGE_TRANSFER_SRC_BIT",
-        "VK_IMAGE_USAGE_TRANSFER_DST_BIT"
-    };
     ImGui::Combo("Image Usage", &imageUsage, imageUsageOptions, IM_ARRAYSIZE(imageUsageOptions));
 
     // Presentation Mode Selection
-    static int presentMode = 1;
-    const char* presentModeOptions[] = {
-        "VK_PRESENT_MODE_IMMEDIATE_KHR",
-        "VK_PRESENT_MODE_MAILBOX_KHR",
-        "VK_PRESENT_MODE_FIFO_KHR",
-        "VK_PRESENT_MODE_FIFO_RELAXED_KHR"
-    };
     ImGui::Combo("Presentation Mode", &presentMode, presentModeOptions, IM_ARRAYSIZE(presentModeOptions));
 
     // Image Format Selection
-    static int imageFormat = 0;
-    const char* imageFormatOptions[] = {
-        "VK_FORMAT_B8G8R8A8_UNORM",
-        "VK_FORMAT_B8G8R8A8_SRGB",
-        "VK_FORMAT_R8G8B8A8_SRGB"
-    };
     ImGui::Combo("Image Format", &imageFormat, imageFormatOptions, IM_ARRAYSIZE(imageFormatOptions));
 
     // Image Color Space Selection
-    static int imageColorSpace = 0;
-    const char* imageColorSpaceOptions[] = {
-        "VK_COLORSPACE_SRGB_NONLINEAR_KHR"
-    };
     ImGui::Combo("Image Color Space", &imageColorSpace, imageColorSpaceOptions, IM_ARRAYSIZE(imageColorSpaceOptions));
 
     ImGui::EndTabItem();
