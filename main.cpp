@@ -362,7 +362,7 @@ private:
         ImGui::SetCursorPosY(height - 60); // Align near bottom
         ImGui::Separator();
         if (ImGui::Button("Generate GVE Project Header", ImVec2(ImGui::GetContentRegionAvail().x, 40))) {
-        	saveToXML();
+        	saveFile();
         }
 
         ImGui::End();

@@ -12,14 +12,13 @@
     </LogicalDevice>
     <SwapchainSettings>
         <ClearColor name="ClearColor">
-            <clearColorRInput name="clearColorRInput">1</clearColorRInput>
-            <clearColorGInput name="clearColorGInput">0.6901961</clearColorGInput>
-            <clearColorBInput name="clearColorBInput">0.12156863</clearColorBInput>
+            <clearColorRInput name="clearColorRInput">0</clearColorRInput>
+            <clearColorGInput name="clearColorGInput">0</clearColorGInput>
+            <clearColorBInput name="clearColorBInput">0</clearColorBInput>
             <clearColorAInput name="clearColorAInput">1</clearColorAInput>
         </ClearColor>
         <FramesInFlight>2</FramesInFlight>
         <SwapchainImageCount>3</SwapchainImageCount>
-        <VSyncMode>1</VSyncMode>
         <ImageUsage>VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT</ImageUsage>
         <PresentationMode>VK_PRESENT_MODE_MAILBOX_KHR</PresentationMode>
         <ImageFormat>VK_FORMAT_B8G8R8A8_UNORM</ImageFormat>

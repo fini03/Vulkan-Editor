@@ -3,7 +3,7 @@
 #include "vulkan_editor/vulkan_base.h"
 #include <SDL3/SDL_video.h>
 #include <map>
-
+#include "vulkan_generator.h"
 #include "libs/tinyxml2.h"
 #include <fstream>
 
@@ -49,6 +49,9 @@ static int imageColorSpace = 0;
 const char* imageColorSpaceOptions[] = {
     "VK_COLORSPACE_SRGB_NONLINEAR_KHR"
 };
+
+static int vulkanVersionIndex = 0; // Default index (corresponds to Vulkan 1.0)
+const char* vulkanVersions[] = { "VK_API_VERSION_1_0", "VK_API_VERSION_1_1", "VK_API_VERSION_1_2", "VK_API_VERSION_1_3", "VK_API_VERSION_1_4" };
 
 void savePhysicalDeviceSettings(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root, int selectedGPU, const std::vector<std::string>& gpuNames) {
     tinyxml2::XMLElement* deviceElement = doc.NewElement("PhysicalDevice");
@@ -175,15 +178,29 @@ void saveToXML() {
     doc.SaveFile("vulkan.xml");
 }
 
+void saveFile() {
+	std::string generatedCode = generateVulkanCode(appName, vulkanVersionIndex, showDebug, runOnLinux, runOnMacOS, runOnWindows);
+
+    // Save to file
+    std::ofstream outFile("myvulkanapp.cpp");
+    if (outFile.is_open()) {
+        outFile << generatedCode;
+        outFile.close();
+        std::cout << "Vulkan code successfully saved to myvulkanapp.cpp" << std::endl;
+    } else {
+        std::cerr << "Error: Could not open file for writing!" << std::endl;
+    }
+}
+
 void showInstanceView() {
 	ImGui::Text("Application Name:");
 
     ImGui::InputText("##appName", appName, IM_ARRAYSIZE(appName));
 
+    ImGui::Text("Vulkan API Version:");
+    ImGui::Combo("##vulkanVersion", &vulkanVersionIndex, vulkanVersions, IM_ARRAYSIZE(vulkanVersions));
 
     ImGui::Checkbox("Show Validation Layer Debug Info", &showDebug);
-
-
 
     ImGui::Checkbox("Run on Linux", &runOnLinux);
     ImGui::Checkbox("Run on MacOS", &runOnMacOS);
