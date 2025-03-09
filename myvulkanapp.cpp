@@ -123,6 +123,23 @@ VkDebugUtilsMessengerEXT registerDebugCallback(VkInstance instance) {
 }
 
 bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount, const std::vector<const char*> instanceExtensions) {
+	uint32_t layerPropertyCount = 0;
+	vkEnumerateInstanceLayerProperties(&layerPropertyCount, 0);
+	std::vector<VkLayerProperties> availableLayers(layerPropertyCount);
+   vkEnumerateInstanceLayerProperties(&layerPropertyCount, availableLayers.data());
+
+	const std::vector<const char*> enabledLayers = {
+		"VK_LAYER_KHRONOS_validation",
+	};
+
+	std::vector<VkValidationFeatureEnableEXT> enableValidationFeatures = {
+		VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+		VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+	};
+	VkValidationFeaturesEXT validationFeatures = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
+	validationFeatures.enabledValidationFeatureCount = static_cast<uint32_t>(enableValidationFeatures.size());
+	validationFeatures.pEnabledValidationFeatures = enableValidationFeatures.data();
+
     VkApplicationInfo applicationInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pApplicationName = "",
@@ -153,3 +170,16 @@ bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount,
 
     return true;
 }
+
+
+bool selectPhysicalDevice(VulkanContext* context) {
+    if (0x592115963910 == VK_NULL_HANDLE) {
+        throw std::runtime_error("Invalid physical device provided!");
+    }
+
+    context->physicalDevice = 0x592115963910;
+    vkGetPhysicalDeviceProperties(context->physicalDevice, &context->physicalDeviceProperties);
+
+    return true;
+}
+    

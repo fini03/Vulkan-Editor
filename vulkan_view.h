@@ -4,182 +4,14 @@
 #include <SDL3/SDL_video.h>
 #include <map>
 #include "vulkan_generator.h"
+#include "vulkan_config.h"
 #include "libs/tinyxml2.h"
 #include <fstream>
 
-static bool runOnLinux = true;
-static bool runOnMacOS = false;
-static bool runOnWindows = false;
-static bool showDebug = true;
-static char appName[256] = "";
-
-std::vector<std::string> gpuNames;
-std::vector<VkPhysicalDevice> physicalDevices;
-int selectedGPU = 0;
-
-std::vector<std::string> availableExtensions;
-std::map<std::string, bool> extensionSelection;
-
-static bool graphicsQueue = true;
-static bool computeQueue = false;
-
-static float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-static int framesInFlight = 2;
-static int swapchainImageCount = 3;
-static int imageUsage = 0;
-const char* imageUsageOptions[] = {
-        "VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT",
-        "VK_IMAGE_USAGE_TRANSFER_SRC_BIT",
-        "VK_IMAGE_USAGE_TRANSFER_DST_BIT"
-    };
-static int presentMode = 1;
-const char* presentModeOptions[] = {
-        "VK_PRESENT_MODE_IMMEDIATE_KHR",
-        "VK_PRESENT_MODE_MAILBOX_KHR",
-        "VK_PRESENT_MODE_FIFO_KHR",
-        "VK_PRESENT_MODE_FIFO_RELAXED_KHR"
-    };
-static int imageFormat = 0;
-const char* imageFormatOptions[] = {
-    "VK_FORMAT_B8G8R8A8_UNORM",
-    "VK_FORMAT_B8G8R8A8_SRGB",
-    "VK_FORMAT_R8G8B8A8_SRGB"
-};
-static int imageColorSpace = 0;
-const char* imageColorSpaceOptions[] = {
-    "VK_COLORSPACE_SRGB_NONLINEAR_KHR"
-};
-
-static int vulkanVersionIndex = 0; // Default index (corresponds to Vulkan 1.0)
-const char* vulkanVersions[] = { "VK_API_VERSION_1_0", "VK_API_VERSION_1_1", "VK_API_VERSION_1_2", "VK_API_VERSION_1_3", "VK_API_VERSION_1_4" };
-
-void savePhysicalDeviceSettings(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root, int selectedGPU, const std::vector<std::string>& gpuNames) {
-    tinyxml2::XMLElement* deviceElement = doc.NewElement("PhysicalDevice");
-    deviceElement->SetAttribute("SelectedGPU", selectedGPU);
-    deviceElement->SetText(gpuNames[selectedGPU].c_str());
-    root->InsertEndChild(deviceElement);
-}
-
-void saveDeviceExtensions(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root, const std::map<std::string, bool>& extensionSelection) {
-    tinyxml2::XMLElement* extensionsElement = doc.NewElement("DeviceExtensions");
-    for (const auto& ext : extensionSelection) {
-        tinyxml2::XMLElement* extElement = doc.NewElement("Extension");
-        extElement->SetAttribute("name", ext.first.c_str());
-        extElement->SetAttribute("enabled", ext.second);
-        extensionsElement->InsertEndChild(extElement);
-    }
-    root->InsertEndChild(extensionsElement);
-}
-
-void saveLogicalDeviceSettings(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root, bool graphicsQueue, bool computeQueue) {
-    tinyxml2::XMLElement* logicalDeviceElement = doc.NewElement("LogicalDevice");
-
-    tinyxml2::XMLElement* graphicsElement = doc.NewElement("GraphicsQueue");
-    graphicsElement->SetText(graphicsQueue);
-    logicalDeviceElement->InsertEndChild(graphicsElement);
-
-    tinyxml2::XMLElement* computeElement = doc.NewElement("ComputeQueue");
-    computeElement->SetText(computeQueue);
-    logicalDeviceElement->InsertEndChild(computeElement);
-
-    root->InsertEndChild(logicalDeviceElement);
-}
-
-void saveSwapchainSettings(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root) {
-    // Create SwapchainSettings element
-    tinyxml2::XMLElement* swapchainElement = doc.NewElement("SwapchainSettings");
-    root->InsertEndChild(swapchainElement);
-
-    // Clear Color
-    tinyxml2::XMLElement* clearColorElement = doc.NewElement("ClearColor");
-    clearColorElement->SetAttribute("name", "ClearColor");
-
-    tinyxml2::XMLElement* rElement = doc.NewElement("clearColorRInput");
-    rElement->SetAttribute("name", "clearColorRInput");
-    rElement->SetText(clearColor[0]);
-    clearColorElement->InsertEndChild(rElement);
-
-    tinyxml2::XMLElement* gElement = doc.NewElement("clearColorGInput");
-    gElement->SetAttribute("name", "clearColorGInput");
-    gElement->SetText(clearColor[1]);
-    clearColorElement->InsertEndChild(gElement);
-
-    tinyxml2::XMLElement* bElement = doc.NewElement("clearColorBInput");
-    bElement->SetAttribute("name", "clearColorBInput");
-    bElement->SetText(clearColor[2]);
-    clearColorElement->InsertEndChild(bElement);
-
-    tinyxml2::XMLElement* aElement = doc.NewElement("clearColorAInput");
-    aElement->SetAttribute("name", "clearColorAInput");
-    aElement->SetText(clearColor[3]);
-    clearColorElement->InsertEndChild(aElement);
-
-    swapchainElement->InsertEndChild(clearColorElement);
-
-    // Frames in Flight
-    tinyxml2::XMLElement* framesElement = doc.NewElement("FramesInFlight");
-    framesElement->SetText(framesInFlight);
-    swapchainElement->InsertEndChild(framesElement);
-
-    // Swapchain Image Count
-    tinyxml2::XMLElement* imageCountElement = doc.NewElement("SwapchainImageCount");
-    imageCountElement->SetText(swapchainImageCount);
-    swapchainElement->InsertEndChild(imageCountElement);
-
-    // Image Usage
-    tinyxml2::XMLElement* usageElement = doc.NewElement("ImageUsage");
-    usageElement->SetText(imageUsageOptions[imageUsage]);
-    swapchainElement->InsertEndChild(usageElement);
-
-    // Presentation Mode
-    tinyxml2::XMLElement* presentElement = doc.NewElement("PresentationMode");
-    presentElement->SetText(presentModeOptions[presentMode]);
-    swapchainElement->InsertEndChild(presentElement);
-
-    // Image Format
-    tinyxml2::XMLElement* formatElement = doc.NewElement("ImageFormat");
-    formatElement->SetText(imageFormatOptions[imageFormat]);
-    swapchainElement->InsertEndChild(formatElement);
-
-    // Image Color Space
-    tinyxml2::XMLElement* colorSpaceElement = doc.NewElement("ImageColorSpace");
-    colorSpaceElement->SetText(imageColorSpaceOptions[imageColorSpace]);
-    swapchainElement->InsertEndChild(colorSpaceElement);
-}
-
-
-void saveToXML() {
-    tinyxml2::XMLDocument doc;
-    tinyxml2::XMLElement* root = doc.NewElement("VulkanSettings");
-    doc.InsertFirstChild(root);
-
-    // General settings
-    tinyxml2::XMLElement* nameElement = doc.NewElement("AppName");
-    nameElement->SetText(appName);
-    root->InsertEndChild(nameElement);
-
-    tinyxml2::XMLElement* debugElement = doc.NewElement("ShowDebug");
-    debugElement->SetText(showDebug);
-    root->InsertEndChild(debugElement);
-
-    tinyxml2::XMLElement* osElement = doc.NewElement("OperatingSystems");
-    osElement->SetAttribute("Linux", runOnLinux);
-    osElement->SetAttribute("MacOS", runOnMacOS);
-    osElement->SetAttribute("Windows", runOnWindows);
-    root->InsertEndChild(osElement);
-
-    // Save Vulkan settings
-    savePhysicalDeviceSettings(doc, root, selectedGPU, gpuNames);
-    saveDeviceExtensions(doc, root, extensionSelection);
-    saveLogicalDeviceSettings(doc, root, graphicsQueue, computeQueue);
-    saveSwapchainSettings(doc, root);
-
-    // Save to file
-    doc.SaveFile("vulkan.xml");
-}
+VulkanConfig config = {};
 
 void saveFile() {
-	std::string generatedCode = generateVulkanCode(appName, vulkanVersionIndex, showDebug, runOnLinux, runOnMacOS, runOnWindows);
+	std::string generatedCode = generateVulkanCode(config);
 
     // Save to file
     std::ofstream outFile("myvulkanapp.cpp");
@@ -195,16 +27,16 @@ void saveFile() {
 void showInstanceView() {
 	ImGui::Text("Application Name:");
 
-    ImGui::InputText("##appName", appName, IM_ARRAYSIZE(appName));
+    ImGui::InputText("##appName", config.appName, IM_ARRAYSIZE(config.appName));
 
     ImGui::Text("Vulkan API Version:");
-    ImGui::Combo("##vulkanVersion", &vulkanVersionIndex, vulkanVersions, IM_ARRAYSIZE(vulkanVersions));
+    ImGui::Combo("##vulkanVersion", &config.vulkanVersionIndex, config.vulkanVersions.data(), (int)config.vulkanVersions.size());
 
-    ImGui::Checkbox("Show Validation Layer Debug Info", &showDebug);
+    ImGui::Checkbox("Show Validation Layer Debug Info", &config.showDebug);
 
-    ImGui::Checkbox("Run on Linux", &runOnLinux);
-    ImGui::Checkbox("Run on MacOS", &runOnMacOS);
-    ImGui::Checkbox("Run on Windows", &runOnWindows);
+    ImGui::Checkbox("Run on Linux", &config.runOnLinux);
+    ImGui::Checkbox("Run on MacOS", &config.runOnMacOS);
+    ImGui::Checkbox("Run on Windows", &config.runOnWindows);
 
     ImGui::EndTabItem();
 }
@@ -217,20 +49,20 @@ void enumerateGPUs(VulkanContext* context) {
         return;
     }
 
-    physicalDevices.resize(numDevices);
-    gpuNames.clear();
+    config.physicalDevices.resize(numDevices);
+    config.gpuNames.clear();
 
-    vkEnumeratePhysicalDevices(context->instance, &numDevices, physicalDevices.data());
+    vkEnumeratePhysicalDevices(context->instance, &numDevices, config.physicalDevices.data());
 
     for (uint32_t i = 0; i < numDevices; ++i) {
         VkPhysicalDeviceProperties properties;
-        vkGetPhysicalDeviceProperties(physicalDevices[i], &properties);
-        gpuNames.push_back(properties.deviceName);
+        vkGetPhysicalDeviceProperties(config.physicalDevices[i], &properties);
+        config.gpuNames.push_back(properties.deviceName);
     }
 
     // Set default selection
-    selectedGPU = 0;
-    context->physicalDevice = physicalDevices[selectedGPU];
+    config.selectedGPU = 0;
+    context->physicalDevice = config.physicalDevices[config.selectedGPU];
 }
 
 void showPhysicalDeviceView(VulkanContext* context) {
@@ -238,11 +70,11 @@ void showPhysicalDeviceView(VulkanContext* context) {
 
     // Convert vector<string> to vector<const char*>
     std::vector<const char*> gpuNamesCStr;
-    for (const auto& name : gpuNames)
+    for (const auto& name : config.gpuNames)
         gpuNamesCStr.push_back(name.c_str());
 
-    if (ImGui::Combo("##gpuSelector", &selectedGPU, gpuNamesCStr.data(), gpuNamesCStr.size())) {
-        context->physicalDevice = physicalDevices[selectedGPU];
+    if (ImGui::Combo("##gpuSelector", &config.selectedGPU, gpuNamesCStr.data(), gpuNamesCStr.size())) {
+        context->physicalDevice = config.physicalDevices[config.selectedGPU];
         vkGetPhysicalDeviceProperties(context->physicalDevice, &context->physicalDeviceProperties);
     }
 
@@ -264,31 +96,31 @@ void queryDeviceExtensions(VkPhysicalDevice physicalDevice) {
     std::vector<VkExtensionProperties> extensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, extensions.data());
 
-    availableExtensions.clear();
-    extensionSelection.clear();
+    config.availableExtensions.clear();
+    config.extensionSelection.clear();
 
     // Only required extensions
-    availableExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    extensionSelection[VK_KHR_SWAPCHAIN_EXTENSION_NAME] = true;
+    config.availableExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    config.extensionSelection[VK_KHR_SWAPCHAIN_EXTENSION_NAME] = true;
 
-    if (runOnMacOS) {
-        availableExtensions.push_back("VK_KHR_portability_subset");
-        extensionSelection["VK_KHR_portability_subset"] = true;
+    if (config.runOnMacOS) {
+        config.availableExtensions.push_back("VK_KHR_portability_subset");
+        config.extensionSelection["VK_KHR_portability_subset"] = true;
     }
 }
 
 
 void showLogicalDeviceView() {
 	ImGui::Text("Queue Families:");
-    ImGui::Checkbox("Graphics Queue", &graphicsQueue);
-    ImGui::Checkbox("Compute Queue", &computeQueue);
+    ImGui::Checkbox("Graphics Queue", &config.graphicsQueue);
+    ImGui::Checkbox("Compute Queue", &config.computeQueue);
 
     ImGui::Text("Extensions:");
 
-    for (const auto& ext : availableExtensions) {
-        if (ext == VK_KHR_SWAPCHAIN_EXTENSION_NAME || (runOnMacOS && ext == "VK_KHR_portability_subset")) {
+    for (const auto& ext : config.availableExtensions) {
+        if (ext == VK_KHR_SWAPCHAIN_EXTENSION_NAME || (config.runOnMacOS && ext == "VK_KHR_portability_subset")) {
         	// Always enable required extensions
-         	extensionSelection[ext] = true;
+         	config.extensionSelection[ext] = true;
           	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 0, 1));  // Yellow for required
            	ImGui::Text("** %s ** (Required)", ext.c_str());
             ImGui::PopStyleColor();
@@ -312,25 +144,25 @@ void showSwapchainView(SDL_Window* window) {
 
     // Image Clear Color
     ImGui::Text("Image Clear Color:");
-    ImGui::ColorEdit4("Clear Color", clearColor);
+    ImGui::ColorEdit4("Clear Color", config.clearColor);
 
     // Frames in Flight
-    ImGui::SliderInt("Frames in Flight", &framesInFlight, 1, 3);
+    ImGui::SliderInt("Frames in Flight", &config.framesInFlight, 1, 3);
 
     // Swapchain Image Count
-    ImGui::SliderInt("Swapchain Image Count", &swapchainImageCount, 2, 8);
+    ImGui::SliderInt("Swapchain Image Count", &config.swapchainImageCount, 2, 8);
 
     // Image Usage Selection
-    ImGui::Combo("Image Usage", &imageUsage, imageUsageOptions, IM_ARRAYSIZE(imageUsageOptions));
+    ImGui::Combo("Image Usage", &config.imageUsage, config.imageUsageOptions.data(), (int)config.imageUsageOptions.size());
 
     // Presentation Mode Selection
-    ImGui::Combo("Presentation Mode", &presentMode, presentModeOptions, IM_ARRAYSIZE(presentModeOptions));
+    ImGui::Combo("Presentation Mode", &config.presentMode, config.presentModeOptions.data(), (int)config.presentModeOptions.size());
 
     // Image Format Selection
-    ImGui::Combo("Image Format", &imageFormat, imageFormatOptions, IM_ARRAYSIZE(imageFormatOptions));
+    ImGui::Combo("Image Format", &config.imageFormat, config.imageFormatOptions.data(), (int)config.imageFormatOptions.size());
 
     // Image Color Space Selection
-    ImGui::Combo("Image Color Space", &imageColorSpace, imageColorSpaceOptions, IM_ARRAYSIZE(imageColorSpaceOptions));
+    ImGui::Combo("Image Color Space", &config.imageColorSpace, config.imageColorSpaceOptions.data(), (int)config.imageColorSpaceOptions.size());
 
     ImGui::EndTabItem();
 }

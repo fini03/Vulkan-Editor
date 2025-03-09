@@ -1,10 +1,13 @@
 #include <iostream>
 #include <vector>
+#include <vulkan/vulkan_core.h>
+#include "vulkan_config.h"
 
-std::string generateHeader(bool showDebug) {
+std::string generateHeader(bool showDebug, bool runOnMacOS) {
+	std::cout << "habibi\n";
 	std::string enableValidationLayers = showDebug ? "true" : "false";
 
-	return R"(
+	std::string output = R"(
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <iostream>
@@ -15,8 +18,22 @@ std::string generateHeader(bool showDebug) {
 #include <SDL3/SDL_vulkan.h>
 #include <SDL3/SDL_video.h>
 
-bool enableValidationLayers = )" + enableValidationLayers + R"(;
+bool enableValidationLayers = )" + enableValidationLayers;
 
+if(runOnMacOS) {
+	output += R"(
+const std::vector<const char*> enabledDeviceExtensions = {
+	"VK_KHR_swapchain",
+	"VK_KHR_portability_subset"
+};)";
+} else {
+	output += R"(
+const std::vector<const char*> enabledDeviceExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};)";
+}
+
+output += R"(
 struct VulkanQueue {
 	VkQueue queue;
 	uint32_t familyIndex;
@@ -91,6 +108,7 @@ public:
 	void destroyPipeline(VulkanContext* context);
 };
 )";
+	return output;
 }
 
 std::string generateRequiredExtension(bool runOnMacOS) {
@@ -159,6 +177,23 @@ VkDebugUtilsMessengerEXT registerDebugCallback(VkInstance instance) {
 std::string generateInstanceCreationCode(const std::string& appName, const std::string& vulkanVersion, const std::string& platformFlags) {
     return R"(
 bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount, const std::vector<const char*> instanceExtensions) {
+	uint32_t layerPropertyCount = 0;
+	vkEnumerateInstanceLayerProperties(&layerPropertyCount, 0);
+	std::vector<VkLayerProperties> availableLayers(layerPropertyCount);
+   vkEnumerateInstanceLayerProperties(&layerPropertyCount, availableLayers.data());
+
+	const std::vector<const char*> enabledLayers = {
+		"VK_LAYER_KHRONOS_validation",
+	};
+
+	std::vector<VkValidationFeatureEnableEXT> enableValidationFeatures = {
+		VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+		VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+	};
+	VkValidationFeaturesEXT validationFeatures = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
+	validationFeatures.enabledValidationFeatureCount = static_cast<uint32_t>(enableValidationFeatures.size());
+	validationFeatures.pEnabledValidationFeatures = enableValidationFeatures.data();
+
     VkApplicationInfo applicationInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pApplicationName = ")" + appName + R"(",
@@ -192,23 +227,81 @@ bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount,
 )";
 }
 
+std::string generatePhysicalDeviceSelectionCode(const VkPhysicalDevice physicalDevice) {
+	std::string output = R"(
+bool selectPhysicalDevice(VulkanContext* context, const VkPhysicalDevice physicalDevice) {
+
+	context->physicalDevice = physicalDevice;
+	vkGetPhysicalDeviceProperties(context->physicalDevice, &context->physicalDeviceProperties);
+
+	return true;
+})";
+	return output;
+}
+
+std::string generateLogicalDeviceCreation() {
+	return R"(
+		bool createLogicalDevice(VulkanContext* context, uint32_t deviceExtensionCount, const std::vector<const char*> deviceExtensions) {
+			// Queues
+			uint32_t numQueueFamilies = 0;
+			vkGetPhysicalDeviceQueueFamilyProperties(context->physicalDevice, &numQueueFamilies, 0);
+
+			std::vector<VkQueueFamilyProperties> queueFamilies(numQueueFamilies);
+			vkGetPhysicalDeviceQueueFamilyProperties(context->physicalDevice, &numQueueFamilies, queueFamilies.data());
+
+			uint32_t graphicsQueueIndex = 0;
+			for (uint32_t i = 0; i < numQueueFamilies; ++i) {
+				VkQueueFamilyProperties queueFamily = queueFamilies[i];
+				if (queueFamily.queueCount > 0) {
+					if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+						graphicsQueueIndex = i;
+						break;
+					}
+				}
+			}
+
+			float priorities[] = { 1.0f };
+			VkDeviceQueueCreateInfo queueCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+				.queueFamilyIndex = graphicsQueueIndex,
+				.queueCount = 1,
+				.pQueuePriorities = priorities
+			};
+
+			VkPhysicalDeviceFeatures enabledFeatures = {
+				.samplerAnisotropy = VK_TRUE
+			};
+
+			VkDeviceCreateInfo createInfo = {
+				.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+				.queueCreateInfoCount = 1,
+				.pQueueCreateInfos = &queueCreateInfo,
+				.enabledExtensionCount = deviceExtensionCount,
+				.ppEnabledExtensionNames = deviceExtensions.data(),
+				.pEnabledFeatures = &enabledFeatures
+			};
+
+			if (vkCreateDevice(context->physicalDevice, &createInfo, 0, &context->device) != VK_SUCCESS) {
+				throw std::runtime_error("Failed to create logical device");
+			}
+
+			// Acquire queues
+			context->graphicsQueue.familyIndex = graphicsQueueIndex;
+			vkGetDeviceQueue(context->device, graphicsQueueIndex, 0, &context->graphicsQueue.queue);
+			return true;
+}
+	)";
+}
+
 // Function to generate Vulkan code based on the provided parameters
-std::string generateVulkanCode(const std::string& appName, int vulkanVersionIndex, bool showDebug, bool runOnLinux, bool runOnMacOS, bool runOnWindows) {
-    // Vulkan version mapping
-    const std::vector<std::string> vulkanVersions = {
-        "VK_API_VERSION_1_0",
-        "VK_API_VERSION_1_1",
-        "VK_API_VERSION_1_2",
-        "VK_API_VERSION_1_3",
-        "VK_API_VERSION_1_4"
-    };
-
-    const std::string vulkanVersion = vulkanVersions[vulkanVersionIndex];
-
+std::string generateVulkanCode(const VulkanConfig& config) {
     // OS-specific flags
-    std::string platformFlags = generatePlatformFlags(runOnMacOS);
-
+    std::string platformFlags = generatePlatformFlags(config.runOnMacOS);
 
     // Vulkan instance creation code
-    return generateHeader(showDebug) + "\n" + generateRequiredExtension(runOnMacOS) + "\n" + generateDebugSetup() + "\n" + generateInstanceCreationCode(appName, vulkanVersion, platformFlags);
+    return generateHeader(config.showDebug, config.runOnMacOS) + "\n" + \
+    generateRequiredExtension(config.runOnMacOS) + "\n" + \
+    generateDebugSetup() + "\n" + \
+    generateInstanceCreationCode(config.appName, config.vulkanVersions[config.vulkanVersionIndex], platformFlags) + "\n" + \
+    generatePhysicalDeviceSelectionCode(config.physicalDevices[config.selectedGPU]) + "\n";
 }
