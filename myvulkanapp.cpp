@@ -1,4 +1,25 @@
 
+        #include <vector>
+        #include <string>
+
+        struct VulkanConfig {
+            std::string appName;
+            std::vector<std::string> vulkanVersions;
+            int vulkanVersionIndex;
+            int selectedGPU;
+            bool runOnMacOS;
+            bool showDebug;
+        };
+
+        VulkanConfig config = {
+    "quackie",
+        {"VK_API_VERSION_1_0", "VK_API_VERSION_1_1", "VK_API_VERSION_1_2", "VK_API_VERSION_1_3", "VK_API_VERSION_1_4"},
+            3,
+            0,
+            false,
+            true
+        };
+    
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <iostream>
@@ -10,7 +31,9 @@
 #include <SDL3/SDL_video.h>
 
 bool enableValidationLayers = true;
-
+const std::vector<const char*> enabledDeviceExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
 struct VulkanQueue {
 	VkQueue queue;
 	uint32_t familyIndex;
@@ -26,13 +49,7 @@ public:
 	VkDebugUtilsMessengerEXT debugCallback = nullptr;
 
 	// Methods
-	VulkanContext* initVulkan(
-		uint32_t instanceExtensionCount,
-		const std::vector<const char*> instanceExtensions,
-		uint32_t deviceExtensionCount,
-		const std::vector<const char*> deviceExtensions,
-		bool enableValidationLayers
-	);
+	VulkanContext* initVulkan();
 	void exitVulkan();
 };
 
@@ -122,7 +139,7 @@ VkDebugUtilsMessengerEXT registerDebugCallback(VkInstance instance) {
 	return callback;
 }
 
-bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount, const std::vector<const char*> instanceExtensions) {
+bool initVulkanInstance(VulkanContext* context) {
 	uint32_t layerPropertyCount = 0;
 	vkEnumerateInstanceLayerProperties(&layerPropertyCount, 0);
 	std::vector<VkLayerProperties> availableLayers(layerPropertyCount);
@@ -142,16 +159,18 @@ bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount,
 
     VkApplicationInfo applicationInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .pApplicationName = "",
-        .apiVersion = VK_API_VERSION_1_0
+        .pApplicationName = "quackie",
+        .apiVersion = VK_API_VERSION_1_3
     };
+
+    std::vector<const char*> enabledInstanceExtensions = getRequiredExtensions();
 
     VkInstanceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         
         .pApplicationInfo = &applicationInfo,
-        .enabledExtensionCount = instanceExtensionCount,
-        .ppEnabledExtensionNames = instanceExtensions.data()
+        .enabledExtensionCount = static_cast<uint32_t>(enabledInstanceExtensions.size()),
+        .ppEnabledExtensionNames = enabledInstanceExtensions.data()
     };
 
     if (enableValidationLayers) {
@@ -172,14 +191,189 @@ bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount,
 }
 
 
-bool selectPhysicalDevice(VulkanContext* context) {
-    if (0x592115963910 == VK_NULL_HANDLE) {
-        throw std::runtime_error("Invalid physical device provided!");
+bool selectPhysicalDevice(VulkanContext* context, const int selectedGPU) {
+	uint32_t numDevices = 0;
+	vkEnumeratePhysicalDevices(context->instance, &numDevices, 0);
+	if(!numDevices) {
+		throw std::runtime_error("Failed to find GPUs with Vulkan support!");
+	}
+
+	std::vector<VkPhysicalDevice> physicalDevices(numDevices);
+	vkEnumeratePhysicalDevices(context->instance, &numDevices, physicalDevices.data());
+
+	// TODO: Is it okay to always pick the first one?
+	// Picking first device should be fine for now
+	// hopefully this doesn't bite us
+	context->physicalDevice = physicalDevices[selectedGPU];
+	vkGetPhysicalDeviceProperties(context->physicalDevice, &context->physicalDeviceProperties);
+
+	return true;
+}
+
+		bool createLogicalDevice(VulkanContext* context) {
+			// Queues
+			uint32_t numQueueFamilies = 0;
+			vkGetPhysicalDeviceQueueFamilyProperties(context->physicalDevice, &numQueueFamilies, 0);
+
+			std::vector<VkQueueFamilyProperties> queueFamilies(numQueueFamilies);
+			vkGetPhysicalDeviceQueueFamilyProperties(context->physicalDevice, &numQueueFamilies, queueFamilies.data());
+
+			uint32_t graphicsQueueIndex = 0;
+			for (uint32_t i = 0; i < numQueueFamilies; ++i) {
+				VkQueueFamilyProperties queueFamily = queueFamilies[i];
+				if (queueFamily.queueCount > 0) {
+					if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+						graphicsQueueIndex = i;
+						break;
+					}
+				}
+			}
+
+			float priorities[] = { 1.0f };
+			VkDeviceQueueCreateInfo queueCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+				.queueFamilyIndex = graphicsQueueIndex,
+				.queueCount = 1,
+				.pQueuePriorities = priorities
+			};
+
+			VkPhysicalDeviceFeatures enabledFeatures = {
+				.samplerAnisotropy = VK_TRUE
+			};
+
+			VkDeviceCreateInfo createInfo = {
+				.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+				.queueCreateInfoCount = 1,
+				.pQueueCreateInfos = &queueCreateInfo,
+				.enabledExtensionCount = static_cast<uint32_t>(enabledDeviceExtensions.size()),
+				.ppEnabledExtensionNames = enabledDeviceExtensions.data(),
+				.pEnabledFeatures = &enabledFeatures
+			};
+
+			if (vkCreateDevice(context->physicalDevice, &createInfo, 0, &context->device) != VK_SUCCESS) {
+				throw std::runtime_error("Failed to create logical device");
+			}
+
+			// Acquire queues
+			context->graphicsQueue.familyIndex = graphicsQueueIndex;
+			vkGetDeviceQueue(context->device, graphicsQueueIndex, 0, &context->graphicsQueue.queue);
+			return true;
+}
+	
+
+VulkanContext* VulkanContext::initVulkan() {
+	VulkanContext* context = new VulkanContext;
+
+	if (!initVulkanInstance(context)) {
+		return 0;
+	}
+
+	if (!selectPhysicalDevice(context, config.selectedGPU)) {
+		return 0;
+	}
+
+	if (!createLogicalDevice(context)) {
+		return 0;
+	}
+
+	return context;
+}
+
+void VulkanContext::exitVulkan() {
+	vkDeviceWaitIdle(this->device);
+	vkDestroyDevice(this->device, 0);
+
+	if (this->debugCallback != nullptr) {
+		PFN_vkDestroyDebugUtilsMessengerEXT pfnDestroyDebugUtilsMessengerEXT;
+		pfnDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(this->instance, "vkDestroyDebugUtilsMessengerEXT");
+		pfnDestroyDebugUtilsMessengerEXT(this->instance, this->debugCallback, 0);
+		this->debugCallback = 0;
+	}
+
+	vkDestroyInstance(this->instance, 0);
+}
+
+		class VulkanTutorial {
+public:
+    void run() {
+        initWindow();
+        initVulkan();
+        while (handleMessage()) {
+        	//TODO: Render with Vulkan
+
+        	render();
+        }
+        cleanup();
     }
 
-    context->physicalDevice = 0x592115963910;
-    vkGetPhysicalDeviceProperties(context->physicalDevice, &context->physicalDeviceProperties);
+private:
+    SDL_Window* window = {};
 
-    return true;
+    VulkanContext* context = new VulkanContext();
+
+    VkSurfaceKHR surface = {};
+
+    void initWindow() {
+    	if (!SDL_Init(SDL_INIT_VIDEO)) {
+     		std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
+       		return;
+     	}
+
+    	window = SDL_CreateWindow("Vulkan Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+     	if (!window) {
+      		std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
+      	}
+    }
+
+    void initVulkan() {
+        context = context->initVulkan();
+
+        createSurface();
+    }
+
+    bool handleMessage() {
+    	SDL_Event event = {};
+     	while (SDL_PollEvent(&event)) {
+      		switch (event.type) {
+        	case SDL_EVENT_QUIT:
+         		return false;
+        	}
+      	}
+
+        return true;
+    }
+
+    void cleanup() {
+    	vkDeviceWaitIdle(context->device);
+
+        vkDestroySurfaceKHR(context->instance, surface, nullptr);
+
+        context->exitVulkan();
+
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+    }
+
+    void createSurface() {
+    	if (!SDL_Vulkan_CreateSurface(window, context->instance, 0, &surface)) {
+     		std::cerr << "SDL_CreateSurface Error: " << SDL_GetError() << std::endl;
+     	}
+    }
+
+    void render() {
+    }
+};
+
+int main() {
+    VulkanTutorial vulkanTutorial;
+
+    try {
+        vulkanTutorial.run();
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }
-    
+	

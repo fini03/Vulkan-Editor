@@ -18,7 +18,7 @@ std::string generateHeader(bool showDebug, bool runOnMacOS) {
 #include <SDL3/SDL_vulkan.h>
 #include <SDL3/SDL_video.h>
 
-bool enableValidationLayers = )" + enableValidationLayers;
+bool enableValidationLayers = )" + enableValidationLayers + ";";
 
 if(runOnMacOS) {
 	output += R"(
@@ -49,13 +49,7 @@ public:
 	VkDebugUtilsMessengerEXT debugCallback = nullptr;
 
 	// Methods
-	VulkanContext* initVulkan(
-		uint32_t instanceExtensionCount,
-		const std::vector<const char*> instanceExtensions,
-		uint32_t deviceExtensionCount,
-		const std::vector<const char*> deviceExtensions,
-		bool enableValidationLayers
-	);
+	VulkanContext* initVulkan();
 	void exitVulkan();
 };
 
@@ -176,7 +170,7 @@ VkDebugUtilsMessengerEXT registerDebugCallback(VkInstance instance) {
 // Function to generate the complete Vulkan instance creation code
 std::string generateInstanceCreationCode(const std::string& appName, const std::string& vulkanVersion, const std::string& platformFlags) {
     return R"(
-bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount, const std::vector<const char*> instanceExtensions) {
+bool initVulkanInstance(VulkanContext* context) {
 	uint32_t layerPropertyCount = 0;
 	vkEnumerateInstanceLayerProperties(&layerPropertyCount, 0);
 	std::vector<VkLayerProperties> availableLayers(layerPropertyCount);
@@ -200,12 +194,14 @@ bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount,
         .apiVersion = )" + vulkanVersion + R"(
     };
 
+    std::vector<const char*> enabledInstanceExtensions = getRequiredExtensions();
+
     VkInstanceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         )" + platformFlags + R"(
         .pApplicationInfo = &applicationInfo,
-        .enabledExtensionCount = instanceExtensionCount,
-        .ppEnabledExtensionNames = instanceExtensions.data()
+        .enabledExtensionCount = static_cast<uint32_t>(enabledInstanceExtensions.size()),
+        .ppEnabledExtensionNames = enabledInstanceExtensions.data()
     };
 
     if (enableValidationLayers) {
@@ -229,9 +225,20 @@ bool initVulkanInstance(VulkanContext* context, uint32_t instanceExtensionCount,
 
 std::string generatePhysicalDeviceSelectionCode(const VkPhysicalDevice physicalDevice) {
 	std::string output = R"(
-bool selectPhysicalDevice(VulkanContext* context, const VkPhysicalDevice physicalDevice) {
+bool selectPhysicalDevice(VulkanContext* context, const int selectedGPU) {
+	uint32_t numDevices = 0;
+	vkEnumeratePhysicalDevices(context->instance, &numDevices, 0);
+	if(!numDevices) {
+		throw std::runtime_error("Failed to find GPUs with Vulkan support!");
+	}
 
-	context->physicalDevice = physicalDevice;
+	std::vector<VkPhysicalDevice> physicalDevices(numDevices);
+	vkEnumeratePhysicalDevices(context->instance, &numDevices, physicalDevices.data());
+
+	// TODO: Is it okay to always pick the first one?
+	// Picking first device should be fine for now
+	// hopefully this doesn't bite us
+	context->physicalDevice = physicalDevices[selectedGPU];
 	vkGetPhysicalDeviceProperties(context->physicalDevice, &context->physicalDeviceProperties);
 
 	return true;
@@ -241,7 +248,7 @@ bool selectPhysicalDevice(VulkanContext* context, const VkPhysicalDevice physica
 
 std::string generateLogicalDeviceCreation() {
 	return R"(
-		bool createLogicalDevice(VulkanContext* context, uint32_t deviceExtensionCount, const std::vector<const char*> deviceExtensions) {
+		bool createLogicalDevice(VulkanContext* context) {
 			// Queues
 			uint32_t numQueueFamilies = 0;
 			vkGetPhysicalDeviceQueueFamilyProperties(context->physicalDevice, &numQueueFamilies, 0);
@@ -276,8 +283,8 @@ std::string generateLogicalDeviceCreation() {
 				.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 				.queueCreateInfoCount = 1,
 				.pQueueCreateInfos = &queueCreateInfo,
-				.enabledExtensionCount = deviceExtensionCount,
-				.ppEnabledExtensionNames = deviceExtensions.data(),
+				.enabledExtensionCount = static_cast<uint32_t>(enabledDeviceExtensions.size()),
+				.ppEnabledExtensionNames = enabledDeviceExtensions.data(),
 				.pEnabledFeatures = &enabledFeatures
 			};
 
@@ -293,15 +300,178 @@ std::string generateLogicalDeviceCreation() {
 	)";
 }
 
-// Function to generate Vulkan code based on the provided parameters
-std::string generateVulkanCode(const VulkanConfig& config) {
-    // OS-specific flags
-    std::string platformFlags = generatePlatformFlags(config.runOnMacOS);
+std::string generateVulkanInitialization() {
+	return R"(
+VulkanContext* VulkanContext::initVulkan() {
+	VulkanContext* context = new VulkanContext;
 
-    // Vulkan instance creation code
-    return generateHeader(config.showDebug, config.runOnMacOS) + "\n" + \
-    generateRequiredExtension(config.runOnMacOS) + "\n" + \
-    generateDebugSetup() + "\n" + \
-    generateInstanceCreationCode(config.appName, config.vulkanVersions[config.vulkanVersionIndex], platformFlags) + "\n" + \
-    generatePhysicalDeviceSelectionCode(config.physicalDevices[config.selectedGPU]) + "\n";
+	if (!initVulkanInstance(context)) {
+		return 0;
+	}
+
+	if (!selectPhysicalDevice(context, config.selectedGPU)) {
+		return 0;
+	}
+
+	if (!createLogicalDevice(context)) {
+		return 0;
+	}
+
+	return context;
+})";
+}
+
+std::string generateExitVulkanCode() {
+	return R"(
+void VulkanContext::exitVulkan() {
+	vkDeviceWaitIdle(this->device);
+	vkDestroyDevice(this->device, 0);
+
+	if (this->debugCallback != nullptr) {
+		PFN_vkDestroyDebugUtilsMessengerEXT pfnDestroyDebugUtilsMessengerEXT;
+		pfnDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(this->instance, "vkDestroyDebugUtilsMessengerEXT");
+		pfnDestroyDebugUtilsMessengerEXT(this->instance, this->debugCallback, 0);
+		this->debugCallback = 0;
+	}
+
+	vkDestroyInstance(this->instance, 0);
+})";
+}
+
+std::string generateMainCode() {
+	return R"(
+		class VulkanTutorial {
+public:
+    void run() {
+        initWindow();
+        initVulkan();
+        while (handleMessage()) {
+        	//TODO: Render with Vulkan
+
+        	render();
+        }
+        cleanup();
+    }
+
+private:
+    SDL_Window* window = {};
+
+    VulkanContext* context = new VulkanContext();
+
+    VkSurfaceKHR surface = {};
+
+    void initWindow() {
+    	if (!SDL_Init(SDL_INIT_VIDEO)) {
+     		std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
+       		return;
+     	}
+
+    	window = SDL_CreateWindow("Vulkan Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+     	if (!window) {
+      		std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
+      	}
+    }
+
+    void initVulkan() {
+        context = context->initVulkan();
+
+        createSurface();
+    }
+
+    bool handleMessage() {
+    	SDL_Event event = {};
+     	while (SDL_PollEvent(&event)) {
+      		switch (event.type) {
+        	case SDL_EVENT_QUIT:
+         		return false;
+        	}
+      	}
+
+        return true;
+    }
+
+    void cleanup() {
+    	vkDeviceWaitIdle(context->device);
+
+        vkDestroySurfaceKHR(context->instance, surface, nullptr);
+
+        context->exitVulkan();
+
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+    }
+
+    void createSurface() {
+    	if (!SDL_Vulkan_CreateSurface(window, context->instance, 0, &surface)) {
+     		std::cerr << "SDL_CreateSurface Error: " << SDL_GetError() << std::endl;
+     	}
+    }
+
+    void render() {
+    }
+};
+
+int main() {
+    VulkanTutorial vulkanTutorial;
+
+    try {
+        vulkanTutorial.run();
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+	)";
+}
+
+std::string generateVulkanCode(const VulkanConfig& config) {
+    std::string output = R"(
+        #include <vector>
+        #include <string>
+
+        struct VulkanConfig {
+            std::string appName;
+            std::vector<std::string> vulkanVersions;
+            int vulkanVersionIndex;
+            int selectedGPU;
+            bool runOnMacOS;
+            bool showDebug;
+        };
+
+        VulkanConfig config = {
+    )";
+	    output += "\"";
+	    output += config.appName;
+	    output += R"(",
+        {)" +
+    // Vulkan versions
+    [&]() {
+        std::string versions;
+        for (size_t i = 0; i < config.vulkanVersions.size(); ++i) {
+            versions += "\"";
+            versions += config.vulkanVersions[i];
+            versions += "\"";
+            if (i < config.vulkanVersions.size() - 1) versions += ", ";
+        }
+        return versions;
+    }() + R"(},
+            )" + std::to_string(config.vulkanVersionIndex) + R"(,
+            )" + std::to_string(config.selectedGPU) + R"(,
+            )" + (config.runOnMacOS ? "true" : "false") + R"(,
+            )" + (config.showDebug ? "true" : "false") + R"(
+        };
+    )" +
+    generateHeader(config.showDebug, config.runOnMacOS) + "\n" +
+    generateRequiredExtension(config.runOnMacOS) + "\n" +
+    generateDebugSetup() + "\n" +
+    generateInstanceCreationCode(config.appName, config.vulkanVersions[config.vulkanVersionIndex], generatePlatformFlags(config.runOnMacOS)) + "\n" +
+    generatePhysicalDeviceSelectionCode(config.physicalDevices[config.selectedGPU]) + "\n" +
+    generateLogicalDeviceCreation() + "\n" +
+    generateVulkanInitialization() + "\n" +
+    generateExitVulkanCode() + "\n" +
+    generateMainCode();
+
+    return output;
 }
