@@ -12,6 +12,8 @@ std::string generateHeader(bool showDebug, bool runOnMacOS) {
 #include <vector>
 #include <iostream>
 #include <cstring>
+#include <algorithm>
+#include <limits>
 
 #define SDL_MAIN_HANDLED
 #include <SDL3/SDL.h>
@@ -426,6 +428,104 @@ int main() {
 	)";
 }
 
+std::string generateSwapchainCode(const VulkanConfig& config) {
+    std::string output = R"(
+void VulkanSwapchain::createSwapchain(VulkanContext* context, VkSurfaceKHR surface, VkImageUsageFlags usage, VkExtent2D extent) {
+	VkBool32 supportsPresent = false;
+	vkGetPhysicalDeviceSurfaceSupportKHR(context->physicalDevice, context->graphicsQueue.familyIndex, surface, &supportsPresent);
+	if (!supportsPresent) {
+		std::cerr << "Graphics queue does not support present" << std::endl;
+		return;
+	}
+
+	uint32_t numFormats = 0;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, surface, &numFormats, 0);
+	std::vector<VkSurfaceFormatKHR> availableFormats(numFormats);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, surface, &numFormats, availableFormats.data());
+
+	if (numFormats <= 0) {
+		std::cerr << "No surface formats available" << std::endl;
+		return;
+	}
+
+	// First available format should be a sensible default in most cases
+	VkFormat format = availableFormats[0].format;
+	VkColorSpaceKHR colorSpace = availableFormats[0].colorSpace;
+
+	for (const auto& availableFormat : availableFormats) {
+            if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            	format = availableFormat.format;
+             	colorSpace = availableFormat.colorSpace;
+            }
+        }
+
+	VkSurfaceCapabilitiesKHR surfaceCapabilities = {};
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->physicalDevice, surface, &surfaceCapabilities);
+
+	if (surfaceCapabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        	extent = surfaceCapabilities.currentExtent;
+        } else {
+            extent.width = std::clamp(extent.width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
+            extent.height = std::clamp(extent.height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
+        }
+
+	if (surfaceCapabilities.maxImageCount == 0) {
+		surfaceCapabilities.maxImageCount = 8;
+	}
+
+	uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
+        if (surfaceCapabilities.maxImageCount > 0 && imageCount > surfaceCapabilities.maxImageCount) {
+		imageCount = surfaceCapabilities.maxImageCount;
+        }
+
+	VkSwapchainCreateInfoKHR createInfo = {
+		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+		.surface = surface,
+		.minImageCount = )" + std::to_string(config.swapchainImageCount) + R"(,
+        .imageFormat = )" + config.imageFormatOptions[config.imageFormat] + R"(,
+        .imageColorSpace = )" + config.imageColorSpaceOptions[config.imageColorSpace] + R"(,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = )" + config.imageUsageOptions[config.imageUsage] + R"(,
+        .presentMode = )" + config.presentModeOptions[config.presentMode] + R"(,
+        .clipped = VK_TRUE,
+        .oldSwapchain = VK_NULL_HANDLE
+	};
+
+	if (vkCreateSwapchainKHR(context->device, &createInfo, 0, &this->swapchain) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create window surface");
+	}
+
+	this->format = format;
+	this->extent = extent;
+
+	// Acquire swapchain images
+	uint32_t numImages = 0;
+	vkGetSwapchainImagesKHR(context->device, this->swapchain, &numImages, 0);
+	this->images.resize(numImages);
+	vkGetSwapchainImagesKHR(context->device, this->swapchain, &numImages, this->images.data());
+
+	// Create image views
+	this->imageViews.resize(numImages);
+	for (uint32_t i = 0; i < numImages; ++i) {
+		VkImageViewCreateInfo createInfo = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.image = this->images[i],
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = format,
+			.components = {},
+			.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+		};
+
+		if (vkCreateImageView(context->device, &createInfo, 0, &this->imageViews[i]) != VK_SUCCESS) {
+			throw std::runtime_error("Failed to create image views");
+		}
+	}
+})";
+    return output;
+}
+
+
 std::string generateVulkanCode(const VulkanConfig& config) {
     std::string output = R"(
         #include <vector>
@@ -438,40 +538,76 @@ std::string generateVulkanCode(const VulkanConfig& config) {
             int selectedGPU;
             bool runOnMacOS;
             bool showDebug;
+
+            float clearColor[4];
+            int framesInFlight;
+            int swapchainImageCount;
+            std::string imageUsage;
+            std::string presentMode;
+            std::string imageFormat;
+            std::string imageColorSpace;
         };
 
         VulkanConfig config = {
     )";
-	    output += "\"";
-	    output += config.appName;
-	    output += R"(",
-        {)" +
-    // Vulkan versions
-    [&]() {
-        std::string versions;
+
+    // App Name
+        output += "\"";
+        output += config.appName;
+        output += R"(",)";
+
+        // Vulkan Versions
+        output += "{";
         for (size_t i = 0; i < config.vulkanVersions.size(); ++i) {
-            versions += "\"";
-            versions += config.vulkanVersions[i];
-            versions += "\"";
-            if (i < config.vulkanVersions.size() - 1) versions += ", ";
+            output += "\"";
+            output += config.vulkanVersions[i];
+            output += "\"";
+            if (i < config.vulkanVersions.size() - 1) output += ", ";
         }
-        return versions;
-    }() + R"(},
-            )" + std::to_string(config.vulkanVersionIndex) + R"(,
-            )" + std::to_string(config.selectedGPU) + R"(,
-            )" + (config.runOnMacOS ? "true" : "false") + R"(,
-            )" + (config.showDebug ? "true" : "false") + R"(
-        };
-    )" +
-    generateHeader(config.showDebug, config.runOnMacOS) + "\n" +
-    generateRequiredExtension(config.runOnMacOS) + "\n" +
-    generateDebugSetup() + "\n" +
-    generateInstanceCreationCode(config.appName, config.vulkanVersions[config.vulkanVersionIndex], generatePlatformFlags(config.runOnMacOS)) + "\n" +
-    generatePhysicalDeviceSelectionCode(config.physicalDevices[config.selectedGPU]) + "\n" +
-    generateLogicalDeviceCreation() + "\n" +
-    generateVulkanInitialization() + "\n" +
-    generateExitVulkanCode() + "\n" +
-    generateMainCode();
+        output += "},\n";
+
+        // General Config
+        output += std::to_string(config.vulkanVersionIndex) + ",\n";
+        output += std::to_string(config.selectedGPU) + ",\n";
+        output += (config.runOnMacOS ? "true" : "false");
+        output += ",\n";
+        output += (config.showDebug ? "true" : "false");
+        output += ",\n";
+
+        // Swapchain Config
+        output += "{ " + std::to_string(config.clearColor[0]) + "f, " +
+                         std::to_string(config.clearColor[1]) + "f, " +
+                         std::to_string(config.clearColor[2]) + "f, " +
+                         std::to_string(config.clearColor[3]) + "f },\n";
+
+        output += std::to_string(config.framesInFlight) + ",\n";
+        output += std::to_string(config.swapchainImageCount) + ",\n";
+        output += "\"";
+        output += config.imageUsageOptions[config.imageUsage];
+        output += "\",\n";
+        output += "\"";
+        output += config.presentModeOptions[config.presentMode];
+        output += "\",\n";
+        output += "\"";
+        output += config.imageFormatOptions[config.imageFormat];
+        output += "\",\n";
+        output += "\"";
+        output += config.imageColorSpaceOptions[config.imageColorSpace];
+        output += "\"\n";
+
+        output += "};\n";
+
+        // Append Vulkan setup functions
+        output += generateHeader(config.showDebug, config.runOnMacOS) + "\n";
+        output += generateRequiredExtension(config.runOnMacOS) + "\n";
+        output += generateDebugSetup() + "\n";
+        output += generateInstanceCreationCode(config.appName, config.vulkanVersions[config.vulkanVersionIndex], generatePlatformFlags(config.runOnMacOS)) + "\n";
+        output += generatePhysicalDeviceSelectionCode(config.physicalDevices[config.selectedGPU]) + "\n";
+        output += generateLogicalDeviceCreation() + "\n";
+        output += generateSwapchainCode(config) + "\n";
+        output += generateVulkanInitialization() + "\n";
+        output += generateExitVulkanCode() + "\n";
+        output += generateMainCode();
 
     return output;
 }
