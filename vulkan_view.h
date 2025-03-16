@@ -301,10 +301,10 @@ void createTextureNode() {
     nodes.push_back(node);
 }
 
-void createGlobeNode() {
+void createPipelineNode() {
     Node node;
     node.id = nextId++;
-    node.name = "Globe";
+    node.name = "Pipeline";
     node.position = {200, 200};
     node.settings = PipelineSettings{};
     node.inputPins.push_back(nextLinkId++);
@@ -317,7 +317,7 @@ void createGlobeNode() {
 void showPipelineView() {
     ImGui::Text("Pipelines");
 
-    static const char* predefinedNodes[] = { "Color", "Depth", "Texture", "Globe" };
+    static const char* predefinedNodes[] = { "Color", "Depth", "Texture", "Pipeline" };
     static int selectedNodeIndex = -1;
 
     ImGui::Columns(3, NULL, true); // Three columns: Left = Node List, Middle = Editor, Right = Edit Panel
@@ -339,7 +339,7 @@ void showPipelineView() {
                 case 0: createColorNode(); break;
                 case 1: createDepthNode(); break;
                 case 2: createTextureNode(); break;
-                case 3: createGlobeNode(); break;
+                case 3: createPipelineNode(); break;
             }
             selectedNodeIndex = -1; // Reset selection
         }
