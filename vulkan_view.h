@@ -54,13 +54,18 @@ struct PipelineSettings {
     char fragmentEntryName[64] = "main";
 };
 
+struct Pin {
+    int id;
+    std::string name;
+};
+
 struct Node {
     int id;
     std::string name;
     ImVec2 position;
+    std::vector<Pin> inputPins;
+    std::vector<Pin> outputPins;
     std::optional<PipelineSettings> settings;
-    std::vector<int> inputPins;  // Store multiple input pins
-    std::vector<int> outputPins; // Store multiple output pins
 };
 
 
@@ -249,16 +254,16 @@ void drawNodes() {
         ImGui::Text(node.name.c_str());
 
         // Draw Input Pins
-        for (size_t i = 0; i < node.inputPins.size(); i++) {
-            ed::BeginPin(node.inputPins[i], ed::PinKind::Input);
-            ImGui::Text(("Input " + std::to_string(i + 1)).c_str());
+        for (auto& pin : node.inputPins) {
+            ed::BeginPin(pin.id, ed::PinKind::Input);
+            ImGui::Text(pin.name.c_str());
             ed::EndPin();
         }
 
         // Draw Output Pins
-        for (size_t i = 0; i < node.outputPins.size(); i++) {
-            ed::BeginPin(node.outputPins[i], ed::PinKind::Output);
-            ImGui::Text(("Output " + std::to_string(i + 1)).c_str());
+        for (auto& pin : node.outputPins) {
+            ed::BeginPin(pin.id, ed::PinKind::Output);
+            ImGui::Text(pin.name.c_str());
             ed::EndPin();
         }
 
@@ -271,6 +276,7 @@ void drawNodes() {
     }
 }
 
+
 namespace ed = ax::NodeEditor;
 static int selectedNode = -1; // Default to -1 (no selection)
 
@@ -279,7 +285,7 @@ void createColorNode() {
     node.id = nextId++;
     node.name = "Color";
     node.position = {200, 200};
-    node.inputPins.push_back(nextLinkId++);
+    node.inputPins.push_back({nextLinkId++, "Input 1"});
     nodes.push_back(node);
 }
 
@@ -288,7 +294,7 @@ void createDepthNode() {
     node.id = nextId++;
     node.name = "Depth";
     node.position = {200, 200};
-    node.inputPins.push_back(nextLinkId++);
+    node.inputPins.push_back({nextLinkId++, "Input 1"});
     nodes.push_back(node);
 }
 
@@ -297,7 +303,7 @@ void createTextureNode() {
     node.id = nextId++;
     node.name = "Texture";
     node.position = {200, 200};
-    node.inputPins.push_back(nextLinkId++);
+    node.inputPins.push_back({nextLinkId++, "Input 1"});
     nodes.push_back(node);
 }
 
@@ -307,9 +313,18 @@ void createPipelineNode() {
     node.name = "Pipeline";
     node.position = {200, 200};
     node.settings = PipelineSettings{};
-    node.inputPins.push_back(nextLinkId++);
-    node.outputPins.push_back(nextLinkId++);
+    node.inputPins.push_back({nextLinkId++, "Input 1"});
+    node.outputPins.push_back({nextLinkId++, "Output 1"});
 
+    nodes.push_back(node);
+}
+
+void createModelNode() {
+	Node node;
+    node.id = nextId++;
+    node.name = "Model";
+    node.position = {200, 200};
+    node.inputPins.push_back({nextLinkId++, "Input 1"});
     nodes.push_back(node);
 }
 
@@ -317,7 +332,7 @@ void createPipelineNode() {
 void showPipelineView() {
     ImGui::Text("Pipelines");
 
-    static const char* predefinedNodes[] = { "Color", "Depth", "Texture", "Pipeline" };
+    static const char* predefinedNodes[] = { "Color", "Depth", "Texture", "Pipeline", "Model" };
     static int selectedNodeIndex = -1;
 
     ImGui::Columns(3, NULL, true); // Three columns: Left = Node List, Middle = Editor, Right = Edit Panel
@@ -340,6 +355,7 @@ void showPipelineView() {
                 case 1: createDepthNode(); break;
                 case 2: createTextureNode(); break;
                 case 3: createPipelineNode(); break;
+                case 4: createModelNode(); break;
             }
             selectedNodeIndex = -1; // Reset selection
         }
@@ -408,6 +424,50 @@ void showPipelineView() {
     if (it != nodes.end()) {
         Node& node = *it;
         ImGui::Text("Editing Pipeline Node: %d", selectedNode);
+
+        // ==== Manage Inputs ====
+        ImGui::Text("Inputs:");
+        for (size_t i = 0; i < node.inputPins.size(); ++i) {
+            ImGui::PushID(i); // Unique ID for each pin
+
+            ImGui::InputText("##InputName", node.inputPins[i].name.data(), node.inputPins[i].name.capacity() + 1);
+            ImGui::SameLine();
+            if (ImGui::Button("X")) {
+                node.inputPins.erase(node.inputPins.begin() + i); // Remove pin
+                ImGui::PopID();
+                break; // Avoid invalid access
+            }
+
+            ImGui::PopID();
+        }
+
+        if (ImGui::Button("Add Input")) {
+            node.inputPins.push_back({nextLinkId++, "New Input"});
+        }
+
+        ImGui::Separator();
+
+        // ==== Manage Outputs ====
+        ImGui::Text("Outputs:");
+        for (size_t i = 0; i < node.outputPins.size(); ++i) {
+            ImGui::PushID(i + 1000); // Unique ID for each output
+
+            ImGui::InputText("##OutputName", node.outputPins[i].name.data(), node.outputPins[i].name.capacity() + 1);
+            ImGui::SameLine();
+            if (ImGui::Button("X")) {
+                node.outputPins.erase(node.outputPins.begin() + i); // Remove pin
+                ImGui::PopID();
+                break;
+            }
+
+            ImGui::PopID();
+        }
+
+        if (ImGui::Button("Add Output")) {
+            node.outputPins.push_back({nextLinkId++, "New Output"});
+        }
+
+        ImGui::Separator();
 
         if (node.settings) {
             showInputAssemblySettings(node.settings.value());
