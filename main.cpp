@@ -109,8 +109,7 @@ private:
            	enabledDeviceExtensions,
             enableValidationLayers
         );
-        enumerateGPUs(context);
-        queryDeviceExtensions(context->physicalDevice);
+
         createSurface();
 
         int width = 0;
@@ -331,38 +330,16 @@ private:
             ImGuiWindowFlags_NoResize);
 
         if (ImGui::BeginTabBar("MainTabBar")) {
-            if (ImGui::BeginTabItem("Instance")) {
-            	showInstanceView();
-            }
-
-            if (ImGui::BeginTabItem("Physical Device")) {
-                showPhysicalDeviceView(context);
-            }
-
-            if (ImGui::BeginTabItem("Logical Device")) {
-                showLogicalDeviceView();
-            }
-
-            if (ImGui::BeginTabItem("Swapchain")) {
-            	showSwapchainView(window);
-            }
-
             if (ImGui::BeginTabItem("Model")) {
             	showModelView();
             }
 
             if (ImGui::BeginTabItem("Graphics Pipeline")) {
                 showPipelineView();
+                ImGui::EndTabItem();
             }
 
             ImGui::EndTabBar();
-        }
-
-        // Bottom Button: Generate GVE Project Header
-        ImGui::SetCursorPosY(height - 60); // Align near bottom
-        ImGui::Separator();
-        if (ImGui::Button("Generate GVE Project Header", ImVec2(ImGui::GetContentRegionAvail().x, 40))) {
-        	saveFile();
         }
 
         ImGui::End();

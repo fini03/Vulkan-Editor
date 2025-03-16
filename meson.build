@@ -21,7 +21,11 @@ imgui_files = files(
   'imgui/imgui_widgets.cpp',
   'imgui/imgui_tables.cpp',
   'imgui/backends/imgui_impl_sdl3.cpp',
-  'imgui/backends/imgui_impl_vulkan.cpp'
+  'imgui/backends/imgui_impl_vulkan.cpp',
+  'imgui-node-editor/imgui_node_editor.cpp',
+  'imgui-node-editor/imgui_node_editor_api.cpp',
+  'imgui-node-editor/crude_json.cpp',
+  'imgui-node-editor/imgui_canvas.cpp'
 )
 
 # Vulkan Files

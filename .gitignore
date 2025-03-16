@@ -11,3 +11,5 @@ shaders/compiled_shaders/*
 .cache
 !/subprojects/*.wrap
 !/subprojects/packagefiles
+imgui-node-editor
+NodeEditor.json
