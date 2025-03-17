@@ -1,3 +1,4 @@
+#include "model.h"
 #include <map>
 #include <vulkan/vulkan_core.h>
 
@@ -87,6 +88,8 @@ private:
     std::vector<VkFence> fences{ MAX_FRAMES_IN_FLIGHT };
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
+
+    Model model = {};
 
     void initWindow() {
     	if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -206,6 +209,8 @@ private:
         renderPass.destroyRenderpass(context);
 
         vkDestroyDescriptorPool(context->device, descriptorPool, nullptr);
+        // TODO: we dont need this?
+        model.destroyModel(context);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(context->device, releaseSemaphores[i], nullptr);
@@ -331,7 +336,7 @@ private:
 
         if (ImGui::BeginTabBar("MainTabBar")) {
             if (ImGui::BeginTabItem("Model")) {
-            	showModelView();
+            	showModelView(context, model);
             }
 
             if (ImGui::BeginTabItem("Graphics Pipeline")) {

@@ -1,5 +1,6 @@
 #include "imgui/imgui.h"
 #include "imgui-node-editor/imgui_node_editor.h"
+#include "model.h"
 #include "tinyfiledialogs.h"
 #include "vulkan_editor/vulkan_base.h"
 #include <SDL3/SDL_video.h>
@@ -8,6 +9,7 @@
 #include "vulkan_config.h"
 #include "libs/tinyxml2.h"
 #include <fstream>
+#include <memory>
 #include <optional>
 
 namespace ed = ax::NodeEditor;
@@ -54,39 +56,29 @@ struct PipelineSettings {
     char fragmentEntryName[64] = "main";
 };
 
-struct Pin {
-    int id;
-    std::string name;
+struct Editor {
+    ed::EditorContext* context = nullptr;
+    std::vector<std::unique_ptr<Node>> nodes;
+    std::vector<Link> links;
+    int currentId = 1;
 };
 
-struct Node {
-    int id;
-    std::string name;
-    ImVec2 position;
-    std::vector<Pin> inputPins;
-    std::vector<Pin> outputPins;
-    std::optional<PipelineSettings> settings;
-};
+Editor editor = {};
 
-
-struct Link {
-    int id;
-    int startPin;
-    int endPin;
-};
-
-static std::vector<Node> nodes;
-static std::vector<Link> links;
-static int nextId = 1;
-static int nextLinkId = 100; // Link ID counter
+void NodeEditorInitialize() {
+    editor.context = ed::CreateEditor();
+    //editor.nodes.emplace_back(std::make_unique<PipelineNode>(editor.currentId++));
+    editor.nodes.emplace_back(std::make_unique<ModelNode>(editor.currentId++));
+    editor.nodes.emplace_back(std::make_unique<ModelNode>(editor.currentId++));
+}
 
 void saveFile() {
 
 }
 
-void showModelView() {
-    static char modelPath[256] = "models/viking_room.obj";
-    static char texturePath[256] = "textures/viking_room.png";
+void showModelView(VulkanContext* context, Model& model) {
+    static char modelPath[256] = "data/models/viking_room.obj";
+    static char texturePath[256] = "data/images/viking_room.png";
 
     ImGui::Text("Model File:");
     ImGui::InputText("##modelFile", modelPath, IM_ARRAYSIZE(modelPath));
@@ -111,7 +103,8 @@ void showModelView() {
     }
 
     if (ImGui::Button("Load Model")) {
-        // Load model logic here
+       model.createModel(context, modelPath, texturePath);
+       std::cout << model.indices.size() << "quack\n";
     }
     ImGui::EndTabItem();
 }
@@ -246,147 +239,34 @@ void showShaderSettings(PipelineSettings& settings) {
     showShaderFileSelector(settings);
 }
 
-void drawNodes() {
-    if (nodes.empty()) return;
-
-    for (auto& node : nodes) {
-        ed::BeginNode(node.id);
-        ImGui::Text(node.name.c_str());
-
-        // Draw Input Pins
-        for (auto& pin : node.inputPins) {
-            ed::BeginPin(pin.id, ed::PinKind::Input);
-            ImGui::Text(pin.name.c_str());
-            ed::EndPin();
-        }
-
-        // Draw Output Pins
-        for (auto& pin : node.outputPins) {
-            ed::BeginPin(pin.id, ed::PinKind::Output);
-            ImGui::Text(pin.name.c_str());
-            ed::EndPin();
-        }
-
-        ed::EndNode();
-    }
-
-    // Draw Links
-    for (auto& link : links) {
-        ed::Link(link.id, link.startPin, link.endPin);
-    }
-}
-
 
 namespace ed = ax::NodeEditor;
-static int selectedNode = -1; // Default to -1 (no selection)
 
-void createColorNode() {
-    Node node;
-    node.id = nextId++;
-    node.name = "Color";
-    node.position = {200, 200};
-    node.inputPins.push_back({nextLinkId++, "Input 1"});
-    nodes.push_back(node);
-}
 
-void createDepthNode() {
-	Node node;
-    node.id = nextId++;
-    node.name = "Depth";
-    node.position = {200, 200};
-    node.inputPins.push_back({nextLinkId++, "Input 1"});
-    nodes.push_back(node);
-}
-
-void createTextureNode() {
-	Node node;
-    node.id = nextId++;
-    node.name = "Texture";
-    node.position = {200, 200};
-    node.inputPins.push_back({nextLinkId++, "Input 1"});
-    nodes.push_back(node);
-}
-
-void createPipelineNode() {
-    Node node;
-    node.id = nextId++;
-    node.name = "Pipeline";
-    node.position = {200, 200};
-    node.settings = PipelineSettings{};
-    node.inputPins.push_back({nextLinkId++, "Input 1"});
-    node.outputPins.push_back({nextLinkId++, "Output 1"});
-
-    nodes.push_back(node);
-}
-
-void createModelNode() {
-	Node node;
-    node.id = nextId++;
-    node.name = "Model";
-    node.position = {200, 200};
-    node.inputPins.push_back({nextLinkId++, "Input 1"});
-    nodes.push_back(node);
-}
 
 
 void showPipelineView() {
-    ImGui::Text("Pipelines");
-
-    static const char* predefinedNodes[] = { "Color", "Depth", "Texture", "Pipeline", "Model" };
-    static int selectedNodeIndex = -1;
-
-    ImGui::Columns(3, NULL, true); // Three columns: Left = Node List, Middle = Editor, Right = Edit Panel
-
-    // ========== Left: Node Selection Panel ==========
-    ImGui::BeginChild("NodeSelection", ImVec2(0, 0), true);
-    ImGui::Text("Nodes");
-    ImGui::Separator();
-
-    for (int i = 0; i < IM_ARRAYSIZE(predefinedNodes); i++) {
-        if (ImGui::Selectable(predefinedNodes[i], selectedNodeIndex == i)) {
-            selectedNodeIndex = i;
-        }
-    }
-
-    if (ImGui::Button("Add Selected Node") && selectedNodeIndex >= 0) {
-            // Call the appropriate node creation function
-            switch (selectedNodeIndex) {
-                case 0: createColorNode(); break;
-                case 1: createDepthNode(); break;
-                case 2: createTextureNode(); break;
-                case 3: createPipelineNode(); break;
-                case 4: createModelNode(); break;
-            }
-            selectedNodeIndex = -1; // Reset selection
-        }
-    ImGui::EndChild();
-
-    ImGui::NextColumn(); // Move to Middle Column
+	if(!editor.context)
+		NodeEditorInitialize();
 
     // ========== Middle: Pipeline Editor ==========
-    ImGui::BeginChild("PipelineEditor", ImVec2(0, 0), true);
 
-    if (!g_Context)
-        g_Context = ed::CreateEditor();
-
-    ed::SetCurrentEditor(g_Context);
+    ed::SetCurrentEditor(editor.context);
     ed::Begin("Pipeline Editor");
 
-    drawNodes();
+    for (const auto& node : editor.nodes)
+    	node->render();
 
-    // Handle Double Click on Node
-    ed::NodeId clickedNode = ed::GetDoubleClickedNode();
-    if (clickedNode) {
-    	selectedNode = clickedNode.Get(); // Store the selected node ID
-        printf("Double-click detected on node: %d\n", selectedNode);
-    }
+    for (const auto& link : editor.links)
+    	ed::Link(link.id, link.startPin, link.endPin);
 
     // Ensure we are inside a valid session
        if (ed::BeginCreate()) {
-           ax::NodeEditor::PinId startPin, endPin;
-           if (ed::QueryNewLink(&startPin, &endPin)) {
-               if (startPin != endPin && ed::AcceptNewItem()) { // Ensure no self-linking
-                   links.push_back({ nextLinkId++, (int)startPin.Get(), (int)endPin.Get() });
+           Link link;
+           if (ed::QueryNewLink(&link.startPin, &link.endPin)) {
+               if (link.startPin != link.endPin && ed::AcceptNewItem()) { // Ensure no self-linking
+               		link.id = editor.currentId++;
+                   editor.links.push_back(link);
                    //ed::CommitNewItem();
                }
            }
@@ -397,10 +277,10 @@ void showPipelineView() {
        if (ed::BeginDelete()) {
            ax::NodeEditor::LinkId linkId;
            while (ed::QueryDeletedLink(&linkId)) {
-               auto it = std::remove_if(links.begin(), links.end(),
+               auto it = std::remove_if(editor.links.begin(), editor.links.end(),
                                         [linkId](const Link& link) { return link.id == linkId.Get(); });
-               if (it != links.end()) {
-                   links.erase(it);
+               if (it != editor.links.end()) {
+                   editor.links.erase(it);
                    //ed::CommitDeletedItem();
                }
            }
@@ -409,85 +289,4 @@ void showPipelineView() {
 
     ed::End();
     ed::SetCurrentEditor(nullptr);
-
-    ImGui::EndChild();
-
-    ImGui::NextColumn(); // Move to Right Column
-
-    // ========== Right: Edit Panel ==========
-    ImGui::BeginChild("EditPanel", ImVec2(0, 0), true);
-
-    auto it = std::find_if(nodes.begin(), nodes.end(), [](const Node& n) {
-        return n.id == selectedNode;
-    });
-
-    if (it != nodes.end()) {
-        Node& node = *it;
-        ImGui::Text("Editing Pipeline Node: %d", selectedNode);
-
-        // ==== Manage Inputs ====
-        ImGui::Text("Inputs:");
-        for (size_t i = 0; i < node.inputPins.size(); ++i) {
-            ImGui::PushID(i); // Unique ID for each pin
-
-            ImGui::InputText("##InputName", node.inputPins[i].name.data(), node.inputPins[i].name.capacity() + 1);
-            ImGui::SameLine();
-            if (ImGui::Button("X")) {
-                node.inputPins.erase(node.inputPins.begin() + i); // Remove pin
-                ImGui::PopID();
-                break; // Avoid invalid access
-            }
-
-            ImGui::PopID();
-        }
-
-        if (ImGui::Button("Add Input")) {
-            node.inputPins.push_back({nextLinkId++, "New Input"});
-        }
-
-        ImGui::Separator();
-
-        // ==== Manage Outputs ====
-        ImGui::Text("Outputs:");
-        for (size_t i = 0; i < node.outputPins.size(); ++i) {
-            ImGui::PushID(i + 1000); // Unique ID for each output
-
-            ImGui::InputText("##OutputName", node.outputPins[i].name.data(), node.outputPins[i].name.capacity() + 1);
-            ImGui::SameLine();
-            if (ImGui::Button("X")) {
-                node.outputPins.erase(node.outputPins.begin() + i); // Remove pin
-                ImGui::PopID();
-                break;
-            }
-
-            ImGui::PopID();
-        }
-
-        if (ImGui::Button("Add Output")) {
-            node.outputPins.push_back({nextLinkId++, "New Output"});
-        }
-
-        ImGui::Separator();
-
-        if (node.settings) {
-            showInputAssemblySettings(node.settings.value());
-            showRasterizerSettings(node.settings.value());
-            showDepthStencilSettings(node.settings.value());
-            showMultisamplingSettings(node.settings.value());
-            showColorBlendingSettings(node.settings.value());
-            showShaderSettings(node.settings.value());
-        } else {
-            ImGui::Text("This node has no configurable pipeline settings.");
-        }
-
-        if (ImGui::Button("Cancel")) {
-            selectedNode = -1; // Reset selection
-        }
-    } else {
-        ImGui::Text("Double-click a node to edit.");
-    }
-
-    ImGui::EndChild();
-
-    ImGui::Columns(1); // Reset columns
 }
