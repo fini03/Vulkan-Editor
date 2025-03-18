@@ -17,7 +17,7 @@ public:
     }
     virtual ~Node() {};
 
-protected:
+public:
 	int id;
 	std::vector<Link> links;
 };
