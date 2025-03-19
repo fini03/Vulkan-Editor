@@ -33,11 +33,10 @@ vulkan_files = files(
   'vulkan_editor/vulkan_device.cpp',
   'vulkan_editor/vulkan_swapchain.cpp',
   'vulkan_editor/vulkan_renderpass.cpp',
-  'vulkan_utils.cpp',
 )
 
 # Source Files
-source_files = files('main.cpp', 'model.cpp') + files('libs/tinyfiledialogs.cpp', 'libs/tinyxml2.cpp') + vulkan_files + imgui_files
+source_files = files('main.cpp') + files('libs/tinyfiledialogs.cpp', 'libs/tinyxml2.cpp') + vulkan_files + imgui_files
 
 # Executable
 executable(

@@ -44,9 +44,9 @@ class PipelineNode : public Node {
 public:
     PipelineNode(int id) : Node(id) {
     	inputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexInput });
-        inputPins.push_back({ ed::PinId(id * 10 + 2), PinType::TextureInput });
-        inputPins.push_back({ ed::PinId(id * 10 + 3), PinType::DepthInput });
-        inputPins.push_back({ ed::PinId(id * 10 + 4), PinType::ColorInput });
+        inputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorInput });
+        inputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureInput });
+        inputPins.push_back({ ed::PinId(id * 10 + 4), PinType::DepthInput });
     }
 
     ~PipelineNode() override { }
@@ -61,6 +61,10 @@ public:
        ed::EndPin();
 
        ed::BeginPin(this->id * 10 + 2, ed::PinKind::Input);
+       ImGui::Text("*color_data");
+       ed::EndPin();
+
+       ed::BeginPin(this->id * 10 + 3, ed::PinKind::Input);
        ImGui::Text("*texture_data");
        ed::EndPin();
 
@@ -77,25 +81,43 @@ public:
             return;
         }
 
+        if (!colorData) {
+	        std::cerr << "No color data input set" << std::endl;
+	        return;
+        }
+
         if (!textureData) {
             std::cerr << "No texture data input set" << std::endl;
             return;
         }
 
+        model->generateVertexStructFile();
         vertexData->generateVertexBindings();
+        colorData->generateColorBindings();
         textureData->generateTextureBindings();
+        model->generatePart2();
         std::cout << "VkCreatePipeline stuff quack quack\n\n";
     }
 
-    void setVertexDataInput(const VertexDataNode *vertexData) {
+    void setModel(ModelNode *model) {
+        this->model = model;
+    }
+
+    void setVertexDataInput(VertexDataNode *vertexData) {
         this->vertexData = vertexData;
     }
 
-    void setTextureDataInput(const TextureDataNode *textureData) {
+    void setColorDataInput(ColorDataNode *colorData) {
+        this->colorData = colorData;
+    }
+
+    void setTextureDataInput(TextureDataNode *textureData) {
         this->textureData = textureData;
     }
 
 private:
-    const VertexDataNode *vertexData = nullptr;
-    const TextureDataNode *textureData = nullptr;
+	ModelNode *model = nullptr;
+    VertexDataNode *vertexData = nullptr;
+    ColorDataNode *colorData = nullptr;
+    TextureDataNode *textureData = nullptr;
 };

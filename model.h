@@ -1,7 +1,7 @@
 #pragma once
 #include "imgui.h"
 #include "vulkan_editor/vulkan_base.h"
-#include "vulkan_utils.h"
+#include <fstream>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_ENABLE_EXPERIMENTAL
@@ -15,29 +15,133 @@ namespace ed = ax::NodeEditor;
 
 class VertexDataNode {
 public:
-    virtual void generateVertexBindings() const = 0;
+    virtual void generateVertexBindings() = 0;
+};
+
+class ColorDataNode {
+public:
+    virtual void generateColorBindings() = 0;
 };
 
 class TextureDataNode {
 public:
-    virtual void generateTextureBindings() const = 0;
+    virtual void generateTextureBindings() = 0;
 };
 
-class ModelNode : public Node, public VertexDataNode, public TextureDataNode {
+class ModelNode : public Node, public VertexDataNode, public ColorDataNode, public TextureDataNode {
 public:
+	std::ofstream outFile;
+	size_t attributesCount = 0;
     ModelNode(int id) : Node(id) {
     	outputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexOutput });
-        outputPins.push_back({ ed::PinId(id * 10 + 2), PinType::TextureOutput });
+     	outputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorOutput });
+        outputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureOutput });
+        attributesCount = outputPins.size();
     }
 
     ~ModelNode() override { }
 
-    void generateVertexBindings() const override {
-        std::cout << "VkVertexBindingsquackquackquack\n\n";
+    void generateVertexBindings() override {
+    	outFile.open("Vertex.h", std::ios::app);
+        if (outFile.is_open()) {
+            outFile << "        attributeDescriptions[0].binding = 0;\n"
+                    << "        attributeDescriptions[0].location = 0;\n"
+                    << "        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
+                    << "        attributeDescriptions[0].offset = offsetof(Vertex, pos);\n\n";
+            outFile.close();
+        } else {
+            std::cerr << "Error opening file for writing.\n";
+        }
     }
 
-    void generateTextureBindings() const override {
-        std::cout << "Code for setting up texture bindings\n\n";
+    void generateColorBindings() override {
+    	outFile.open("Vertex.h", std::ios::app);
+        if (outFile.is_open()) {
+            outFile << "        attributeDescriptions[1].binding = 0;\n"
+                    << "        attributeDescriptions[1].location = 1;\n"
+                    << "        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
+                    << "        attributeDescriptions[1].offset = offsetof(Vertex, color);\n\n";
+            outFile.close();
+        } else {
+            std::cerr << "Error opening file for writing.\n";
+        }
+    }
+
+    void generateTextureBindings() override {
+    	outFile.open("Vertex.h", std::ios::app);
+        if (outFile.is_open()) {
+            outFile << "        attributeDescriptions[2].binding = 0;\n"
+                    << "        attributeDescriptions[2].location = 2;\n"
+                    << "        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;\n"
+                    << "        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);\n\n";
+            outFile.close();
+        } else {
+            std::cerr << "Error opening file for writing.\n";
+        }
+    }
+
+    void generateVertexStructFile() {
+    	outFile.open("Vertex.h", std::ios::trunc);
+        if (!outFile.is_open()) {
+            std::cerr << "Error opening file for writing.\n";
+            return;
+        }
+
+        outFile << "#pragma once\n\n"
+                << "#include <vulkan/vulkan.h>\n"
+                << "#define GLM_FORCE_RADIANS\n"
+                << "#define GLM_FORCE_DEPTH_ZERO_TO_ONE\n"
+                << "#define GLM_ENABLE_EXPERIMENTAL\n"
+                << "#include <glm/glm.hpp>\n"
+                << "#include <glm/gtc/matrix_transform.hpp>\n"
+                << "#include <glm/gtx/hash.hpp>\n"
+                << "#include <vector>\n"
+                << "#include <array>\n\n"
+
+                << "struct Vertex {\n"
+                << "    glm::vec3 pos;\n"
+                << "    glm::vec3 color;\n"
+                << "    glm::vec2 texCoord;\n\n"
+
+                << "    static VkVertexInputBindingDescription getBindingDescription() {\n"
+                << "        VkVertexInputBindingDescription bindingDescription{};\n"
+                << "        bindingDescription.binding = 0;\n"
+                << "        bindingDescription.stride = sizeof(Vertex);\n"
+                << "        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;\n\n"
+                << "        return bindingDescription;\n"
+                << "    }\n\n"
+
+                << "    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {\n"
+                << "        std::vector<VkVertexInputAttributeDescription>attributeDescriptions(" << attributesCount << ");\n\n";
+
+                outFile.close();
+    }
+
+    void generatePart2() {
+    	outFile.open("Vertex.h", std::ios::app);
+	    if (!outFile.is_open()) {
+	        std::cerr << "Error opening file for writing.\n";
+	        return;
+	    }
+
+        outFile << "        return attributeDescriptions;\n"
+                << "    }\n\n"
+
+                << "    bool operator==(const Vertex& other) const {\n"
+                << "        return pos == other.pos && color == other.color && texCoord == other.texCoord;\n"
+                << "    }\n"
+                << "};\n\n"
+
+                << "namespace std {\n"
+                << "    template<> struct hash<Vertex> {\n"
+                << "        size_t operator()(Vertex const& vertex) const {\n"
+                << "            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);\n"
+                << "        }\n"
+                << "    };\n"
+                << "}\n";
+
+        outFile.close();
+        std::cout << "Vertex struct successfully written to Vertex.h\n";
     }
 
     void render() const override {
@@ -50,6 +154,10 @@ public:
         ed::EndPin();
 
         ed::BeginPin(this->id * 10 + 2, ed::PinKind::Output);
+        ImGui::Text("*color_data");
+        ed::EndPin();
+
+        ed::BeginPin(this->id * 10 + 3, ed::PinKind::Output);
         ImGui::Text("*texture_data");
         ed::EndPin();
 
@@ -60,70 +168,4 @@ public:
     	}
 
     }
-};
-
-
-struct Vertex {
-    glm::vec3 pos;
-    glm::vec3 color;
-    glm::vec2 texCoord;
-
-    static VkVertexInputBindingDescription getBindingDescription() {
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Vertex);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        return bindingDescription;
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
-
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(Vertex, color);
-
-        attributeDescriptions[2].binding = 0;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
-
-        return attributeDescriptions;
-    }
-
-    bool operator==(const Vertex& other) const {
-        return pos == other.pos && color == other.color && texCoord == other.texCoord;
-    }
-};
-
-namespace std {
-    template<> struct hash<Vertex> {
-        size_t operator()(Vertex const& vertex) const {
-            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
-        }
-    };
-}
-
-class Model {
-public:
-	std::vector<Vertex> vertices = {};
-	std::vector<uint32_t> indices = {};
-    VulkanImage textureImage = {};
-
-    VulkanBuffer vertexBuffer = {};
-    VulkanBuffer indexBuffer = {};
-
-    VkVertexInputBindingDescription bindingDescription;
-    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions;
-
-    // Methods
-    void createModel(VulkanContext* context, const char* modelPath, const char* texturePath);
-    void destroyModel(VulkanContext* context);
 };

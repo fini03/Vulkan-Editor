@@ -7,7 +7,6 @@
 #include <SDL3/SDL_video.h>
 #include <algorithm>
 #include <map>
-#include "vulkan_generator.h"
 #include "vulkan_config.h"
 #include "libs/tinyxml2.h"
 #include <fstream>
@@ -38,12 +37,12 @@ void NodeEditorInitialize() {
 void saveFile() {
     for (const auto& node : editor.nodes) {
         if (auto pipelineNode = dynamic_cast<PipelineNode*>(node.get())) {
-            pipelineNode->generate(); // Assuming generate() returns std::string
+            pipelineNode->generate();
         }
     }
 }
 
-void showModelView(VulkanContext* context, Model& model) {
+void showModelView(VulkanContext* context) {
     static char modelPath[256] = "data/models/viking_room.obj";
     static char texturePath[256] = "data/images/viking_room.png";
 
@@ -67,11 +66,6 @@ void showModelView(VulkanContext* context, Model& model) {
         if (selectedPath) {
             strncpy(texturePath, selectedPath, IM_ARRAYSIZE(texturePath));
         }
-    }
-
-    if (ImGui::Button("Load Model")) {
-       model.createModel(context, modelPath, texturePath);
-       std::cout << model.indices.size() << "quack\n";
     }
     ImGui::EndTabItem();
 }
@@ -124,8 +118,12 @@ void showPipelineView() {
 
                     if (auto modelNode = dynamic_cast<ModelNode*>(startNode)) {
                         if (auto pipelineNode = dynamic_cast<PipelineNode*>(endNode)) {
+                        	pipelineNode->setModel(modelNode);
                             if (startPinType == PinType::VertexOutput && endPinType == PinType::VertexInput) {
                                 pipelineNode->setVertexDataInput(modelNode);
+                            }
+                            if (startPinType == PinType::ColorOutput && endPinType == PinType::ColorInput) {
+                                pipelineNode->setColorDataInput(modelNode);
                             }
                             if (startPinType == PinType::TextureOutput && endPinType == PinType::TextureInput) {
                                 pipelineNode->setTextureDataInput(modelNode);
