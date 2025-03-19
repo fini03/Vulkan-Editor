@@ -5,6 +5,7 @@
 #include "tinyfiledialogs.h"
 #include "vulkan_editor/vulkan_base.h"
 #include <SDL3/SDL_video.h>
+#include <algorithm>
 #include <map>
 #include "vulkan_generator.h"
 #include "vulkan_config.h"
@@ -40,9 +41,7 @@ void saveFile() {
             pipelineNode->generate(); // Assuming generate() returns std::string
         }
     }
-    std::cerr << "No PipelineNode found!\n";
 }
-
 
 void showModelView(VulkanContext* context, Model& model) {
     static char modelPath[256] = "data/models/viking_room.obj";
@@ -78,84 +77,78 @@ void showModelView(VulkanContext* context, Model& model) {
 }
 
 void showPipelineView() {
-	// ======== Top: Toolbar with Generate Button ========
     ImGui::Begin("Pipeline Controls", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize);
 
     if (ImGui::Button("Generate Pipeline")) {
-        for (const auto& node : editor.nodes) {
-            if (auto pipelineNode = dynamic_cast<PipelineNode*>(node.get())) {
-                pipelineNode->generate(); // Assuming generate() returns a string
-                //std::cout << "Generated Pipeline:\n" << pipelineData << std::endl;
-                break; // Assuming only one PipelineNode exists
-            }
-        }
+    	saveFile();
     }
 
-    ImGui::End(); // End of Pipeline Controls panel
-	if(!editor.context)
-		NodeEditorInitialize();
+    ImGui::End();
 
-    // ========== Middle: Pipeline Editor ==========
+    if (!editor.context) NodeEditorInitialize();
 
     ed::SetCurrentEditor(editor.context);
     ed::Begin("Pipeline Editor");
 
-    for (const auto& node : editor.nodes)
-    	node->render();
+    for (const auto& node : editor.nodes) node->render();
 
-    for (const auto& link : editor.links)
-    	ed::Link(link.id, link.startPin, link.endPin);
+    if (ed::BeginCreate()) {
+        Link link;
+        if (ed::QueryNewLink(&link.startPin, &link.endPin)) {
+            if (link.startPin != link.endPin && ed::AcceptNewItem()) {
+                link.id = editor.currentId++;
 
-    // Ensure we are inside a valid session
-       if (ed::BeginCreate()) {
-           Link link;
-           if (ed::QueryNewLink(&link.startPin, &link.endPin)) {
-               if (link.startPin != link.endPin && ed::AcceptNewItem()) { // Ensure no self-linking
-               		link.id = editor.currentId++;
-                   editor.links.push_back(link);
-                   //ed::CommitNewItem();
+                Node* startNode = nullptr;
+                Node* endNode = nullptr;
+                PinType startPinType = PinType::Unknown, endPinType = PinType::Unknown;
 
-                   // Find the nodes being linked
-                    Node* startNode = nullptr;
-                    Node* endNode = nullptr;
+                for (const auto& node : editor.nodes) {
+                    for (const auto& pin : node->outputPins) {
+                        if (pin.id == link.startPin) {
+                            startNode = node.get();
+                            startPinType = pin.type;
+                        }
+                    }
+                    for (const auto& pin : node->inputPins) {
+                        if (pin.id == link.endPin) {
+                            endNode = node.get();
+                            endPinType = pin.type;
+                        }
+                    }
+                }
 
-                                   for (const auto& node : editor.nodes) {
-                                       if (node->id * 10 + 1 == link.startPin.Get() || node->id * 10 + 2 == link.startPin.Get())
-                                           startNode = node.get();
-                                       if (node->id * 10 + 1 == link.endPin.Get() || node->id * 10 + 2 == link.endPin.Get())
-                                           endNode = node.get();
-                                   }
+                if (startNode && endNode) {
+                    startNode->addLink(link);
+                    endNode->addLink(link);
+                    editor.links.push_back(link);
 
-                                   // If the link is from ModelNode to PipelineNode, set the inputs
-                                   if (auto modelNode = dynamic_cast<ModelNode*>(startNode)) {
-                                       if (auto pipelineNode = dynamic_cast<PipelineNode*>(endNode)) {
-                                           pipelineNode->setVertexDataInput(modelNode);
-                                           pipelineNode->setTextureDataInput(modelNode);
-                                       }
-                                   } else if (auto modelNode = dynamic_cast<ModelNode*>(endNode)) {
-                                       if (auto pipelineNode = dynamic_cast<PipelineNode*>(startNode)) {
-                                           pipelineNode->setVertexDataInput(modelNode);
-                                           pipelineNode->setTextureDataInput(modelNode);
-                                       }
-                                   }
-               }
-           }
-       }
-       ed::EndCreate(); // End link creation session
+                    if (auto modelNode = dynamic_cast<ModelNode*>(startNode)) {
+                        if (auto pipelineNode = dynamic_cast<PipelineNode*>(endNode)) {
+                            if (startPinType == PinType::VertexOutput && endPinType == PinType::VertexInput) {
+                                pipelineNode->setVertexDataInput(modelNode);
+                            }
+                            if (startPinType == PinType::TextureOutput && endPinType == PinType::TextureInput) {
+                                pipelineNode->setTextureDataInput(modelNode);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ed::EndCreate();
 
-       // Handle Link Deletion
-       if (ed::BeginDelete()) {
-           ax::NodeEditor::LinkId linkId;
-           while (ed::QueryDeletedLink(&linkId)) {
-               auto it = std::remove_if(editor.links.begin(), editor.links.end(),
-                                        [linkId](const Link& link) { return link.id == linkId.Get(); });
-               if (it != editor.links.end()) {
-                   editor.links.erase(it);
-                   //ed::CommitDeletedItem();
-               }
-           }
-       }
-       ed::EndDelete(); // End link deletion session
+    if (ed::BeginDelete()) {
+        ed::LinkId linkId;
+        while (ed::QueryDeletedLink(&linkId)) {
+        auto it = std::remove_if(editor.links.begin(), editor.links.end(),
+            [linkId](const Link& link) { return link.id == linkId.Get(); });
+            if (it != editor.links.end()) {
+            	editor.links.erase(it);
+            }
+        }
+    }
+    ed::EndDelete();
 
     ed::End();
     ed::SetCurrentEditor(nullptr);

@@ -42,7 +42,12 @@ struct PipelineSettings {
 
 class PipelineNode : public Node {
 public:
-    PipelineNode(int id) : Node(id) { }
+    PipelineNode(int id) : Node(id) {
+    	inputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexInput });
+        inputPins.push_back({ ed::PinId(id * 10 + 2), PinType::TextureInput });
+        inputPins.push_back({ ed::PinId(id * 10 + 3), PinType::DepthInput });
+        inputPins.push_back({ ed::PinId(id * 10 + 4), PinType::ColorInput });
+    }
 
     ~PipelineNode() override { }
 

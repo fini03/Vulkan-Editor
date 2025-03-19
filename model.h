@@ -25,7 +25,10 @@ public:
 
 class ModelNode : public Node, public VertexDataNode, public TextureDataNode {
 public:
-    ModelNode(int id) : Node(id) { }
+    ModelNode(int id) : Node(id) {
+    	outputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexOutput });
+        outputPins.push_back({ ed::PinId(id * 10 + 2), PinType::TextureOutput });
+    }
 
     ~ModelNode() override { }
 
@@ -42,8 +45,12 @@ public:
 	    ImGui::Text("Model");
 
 	    // Draw Pins
-        ed::BeginPin(this->id * 10 + 1, ed::PinKind::Output);
-        ImGui::Text("*data");
+		ed::BeginPin(this->id * 10 + 1, ed::PinKind::Output);
+        ImGui::Text("*vertex_data");
+        ed::EndPin();
+
+        ed::BeginPin(this->id * 10 + 2, ed::PinKind::Output);
+        ImGui::Text("*texture_data");
         ed::EndPin();
 
 	    ed::EndNode();
