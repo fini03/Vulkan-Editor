@@ -91,11 +91,12 @@ public:
             return;
         }
 
-        model->generateVertexStructFile();
+        model->generateVertexStructFilePart1();
         vertexData->generateVertexBindings();
         colorData->generateColorBindings();
         textureData->generateTextureBindings();
-        model->generatePart2();
+        model->generateVertexStructFilePart2();
+        model->generateModel();
         std::cout << "VkCreatePipeline stuff quack quack\n\n";
     }
 
