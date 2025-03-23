@@ -1,0 +1,164 @@
+#include <fstream>
+#include <iostream>
+
+void generateGlobalVariables() {
+    std::ofstream outFile;
+    outFile.open("Vertex.h", std::ios::app);
+    if (!outFile.is_open()) {
+    	std::cerr << "Error opening file for writing.\n";
+        return;
+    }
+
+    outFile << R"(
+    const std::string m_MODEL_PATH = "models/viking_room.obj";
+    const std::string m_TEXTURE_PATH = "textures/viking_room.png";
+
+    const int MAX_FRAMES_IN_FLIGHT = 2;
+
+    const std::vector<const char*> m_validationLayers = {
+        "VK_LAYER_KHRONOS_validation"
+    };
+
+    std::vector<const char*> m_sdl_instance_extensions = {};
+
+    #ifdef __APPLE__
+    const std::vector<const char*> m_deviceExtensions = {
+        "VK_KHR_swapchain",
+        "VK_KHR_portability_subset"
+    };
+    #else
+    const std::vector<const char*> m_deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+    #endif
+
+    #ifdef NDEBUG
+    const bool enableValidationLayers = false;
+    #else
+    const bool enableValidationLayers = true;
+    #endif
+
+
+    //ImGUI
+    static void check_vk_result(VkResult err)
+    {
+        if (err == 0)
+            return;
+        fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
+        if (err < 0)
+            abort();
+    }
+
+    struct QueueFamilyIndices {
+        std::optional<uint32_t> graphicsFamily;
+        std::optional<uint32_t> presentFamily;
+
+        bool isComplete() {
+            return graphicsFamily.has_value() && presentFamily.has_value();
+        }
+    };
+
+    struct SwapChainSupportDetails {
+        VkSurfaceCapabilitiesKHR capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR> presentModes;
+    };
+
+    VmaAllocator m_vmaAllocator;
+
+    SDL_Window* m_sdlWindow{nullptr};
+    bool m_isMinimized = false;
+    bool m_quit = false;
+
+    VkInstance m_instance;
+    VkDebugUtilsMessengerEXT m_debugMessenger;
+    VkSurfaceKHR m_surface;
+
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+    VkDevice m_device;
+
+    QueueFamilyIndices m_queueFamilies;
+    VkQueue m_graphicsQueue;
+    VkQueue m_presentQueue;
+
+    struct SwapChain {
+        VkSwapchainKHR m_swapChain;
+        std::vector<VkImage> m_swapChainImages;
+        VkFormat m_swapChainImageFormat;
+        VkExtent2D m_swapChainExtent;
+        std::vector<VkImageView> m_swapChainImageViews;
+        std::vector<VkFramebuffer> m_swapChainFramebuffers;
+    } m_swapChain;
+
+    VkRenderPass m_renderPass;
+    VkDescriptorSetLayout m_descriptorSetLayout;
+
+    struct Pipeline {
+        VkPipelineLayout m_pipelineLayout;
+        VkPipeline m_pipeline;
+    } m_graphicsPipeline;
+
+    struct DepthImage {
+        VkImage         m_depthImage;
+        VmaAllocation   m_depthImageAllocation;
+        VkImageView     m_depthImageView;
+    } m_depthImage;
+
+	//The texture of an object
+    struct Texture {
+        VkImage         m_textureImage;
+        VmaAllocation   m_textureImageAllocation;
+        VkImageView     m_textureImageView;
+        VkSampler       m_textureSampler;
+    };
+
+	//Mesh of an object
+    struct Geometry {
+        std::vector<Vertex>     m_vertices;
+        std::vector<uint32_t>   m_indices;
+        VkBuffer                m_vertexBuffer;
+        VmaAllocation           m_vertexBufferAllocation;
+        VkBuffer                m_indexBuffer;
+        VmaAllocation           m_indexBufferAllocation;
+    };
+
+	//Uniform buffers of an object
+    struct UniformBuffers {
+        std::vector<VkBuffer>       m_uniformBuffers;
+        std::vector<VmaAllocation>  m_uniformBuffersAllocation;
+        std::vector<void*>          m_uniformBuffersMapped;
+    };
+
+    VkDescriptorPool m_descriptorPool;
+
+	struct UniformBufferObject {
+		alignas(16) glm::mat4 model;
+		alignas(16) glm::mat4 view;
+		alignas(16) glm::mat4 proj;
+	};
+
+	//This holds all information an object with texture needs!
+	struct Object {
+		UniformBufferObject m_ubo; //holds model, view and proj matrix
+		UniformBuffers m_uniformBuffers;
+		Texture m_texture;
+		Geometry m_geometry;
+		std::vector<VkDescriptorSet> m_descriptorSets;
+	};
+
+	std::vector<Object> m_objects;
+
+    VkCommandPool m_commandPool;
+    std::vector<VkCommandBuffer> m_commandBuffers;
+
+    struct SyncObjects {
+        std::vector<VkSemaphore> m_imageAvailableSemaphores;
+        std::vector<VkSemaphore> m_renderFinishedSemaphores;
+        std::vector<VkFence>     m_inFlightFences;
+    } m_syncObjects;
+
+    uint32_t m_currentFrame = 0;
+    bool m_framebufferResized = false;
+
+    )";
+}

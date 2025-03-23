@@ -8,7 +8,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
-#include "node.h"
+//#include "node.h"
+#include "swapchain.h"
 #include "imgui-node-editor/imgui_node_editor.h"
 
 namespace ed = ax::NodeEditor;
@@ -81,32 +82,13 @@ public:
     }
 
     void generateVertexStructFilePart1() {
-    	outFile.open("Vertex.h", std::ios::trunc);
+    	outFile.open("Vertex.h", std::ios::app);
         if (!outFile.is_open()) {
             std::cerr << "Error opening file for writing.\n";
             return;
         }
 
-        outFile << "#pragma once\n\n"
-                << "#include <vulkan/vulkan.h>\n"
-                << "#define GLM_FORCE_RADIANS\n"
-                << "#define GLM_FORCE_DEPTH_ZERO_TO_ONE\n"
-                << "#define GLM_ENABLE_EXPERIMENTAL\n"
-                << "#include <glm/glm.hpp>\n"
-                << "#include <glm/gtc/matrix_transform.hpp>\n"
-                << "#include <glm/gtx/hash.hpp>\n"
-                << "#include <vector>\n"
-                << "#include <string>\n"
-                << "#define VMA_IMPLEMENTATION\n"
-                << "#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1\n"
-                << "#include \"vk_mem_alloc.h\"\n"
-                << "#define TINYOBJLOADER_IMPLEMENTATION\n"
-                << "#include \"libs/tiny_obj_loader.h\"\n"
-                << "#define STB_IMAGE_IMPLEMENTATION\n"
-                << "#include \"libs/stb_image.h\"\n\n"
-                << "const int MAX_FRAMES_IN_FLIGHT = 2;\n"
-
-                << "struct Vertex {\n"
+        outFile << "struct Vertex {\n"
                 << "    glm::vec3 pos;\n"
                 << "    glm::vec3 color;\n"
                 << "    glm::vec2 texCoord;\n\n"
@@ -160,48 +142,8 @@ public:
         }
 
         outFile << R"(
-    //The texture of an object
-    struct Texture {
-        VkImage         m_textureImage;
-        VmaAllocation   m_textureImageAllocation;
-        VkImageView     m_textureImageView;
-        VkSampler       m_textureSampler;
-    };
-
-    //Mesh of an object
-    struct Geometry {
-        std::vector<Vertex>     m_vertices;
-        std::vector<uint32_t>   m_indices;
-        VkBuffer                m_vertexBuffer;
-        VmaAllocation           m_vertexBufferAllocation;
-        VkBuffer                m_indexBuffer;
-        VmaAllocation           m_indexBufferAllocation;
-    };
-
-    //Uniform buffers of an object
-    struct UniformBuffers {
-        std::vector<VkBuffer>       m_uniformBuffers;
-        std::vector<VmaAllocation>  m_uniformBuffersAllocation;
-        std::vector<void*>          m_uniformBuffersMapped;
-    };
-
-    struct UniformBufferObject {
-        alignas(16) glm::mat4 model;
-        alignas(16) glm::mat4 view;
-        alignas(16) glm::mat4 proj;
-    };
-
-    //This holds all information an object with texture needs!
-    struct Object {
-        UniformBufferObject m_ubo; //holds model, view and proj matrix
-        UniformBuffers m_uniformBuffers;
-        Texture m_texture;
-        Geometry m_geometry;
-        std::vector<VkDescriptorSet> m_descriptorSets;
-    };
-
-    std::vector<Object> m_objects;
-
+class VulkanTutorial {
+	public:
     void MemCopy(VkDevice device, void* source, VmaAllocationInfo& allocInfo, VkDeviceSize size) {
         memcpy(allocInfo.pMappedData, source, size);
     }
@@ -459,6 +401,23 @@ public:
           }
       }
 
+
+      void updateUniformBuffer(uint32_t currentImage, SwapChain& swapChain, std::vector<Object>& objects ) {
+          static auto startTime = std::chrono::high_resolution_clock::now();
+          auto currentTime = std::chrono::high_resolution_clock::now();
+          float dt = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+		startTime = currentTime;
+
+		for( auto& object : objects ) {
+	        object.m_ubo.model = glm::rotate(object.m_ubo.model, dt * 1.0f * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	        object.m_ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			object.m_ubo.proj = glm::perspective(glm::radians(45.0f), swapChain.m_swapChainExtent.width / (float) swapChain.m_swapChainExtent.height, 0.1f, 10.0f);
+	        object.m_ubo.proj[1][1] *= -1;
+
+	        memcpy(object.m_uniformBuffers.m_uniformBuffersMapped[currentImage], &object.m_ubo, sizeof(object.m_ubo));
+		}
+      }
+
       void loadModel( Geometry& geometry, const std::string& MODEL_PATH) {
           tinyobj::attrib_t attrib;
           std::vector<tinyobj::shape_t> shapes;
@@ -636,6 +595,9 @@ public:
     )";
 
         outFile.close();
+
+        SwapchainNode swapchain{id};
+        swapchain.generateSwapchain();
     }
 
 
