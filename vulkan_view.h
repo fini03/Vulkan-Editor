@@ -69,22 +69,42 @@ void showModelView(VulkanContext* context) {
     }
     ImGui::EndTabItem();
 }
-
+static PipelineNode* selectedPipelineNode = nullptr;
 void showPipelineView() {
-    ImGui::Begin("Pipeline Controls", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize);
+	// Place the Generate button on the same row, aligned to the right.
+    // First, get the available width of the window's content region.
+    float windowWidth = ImGui::GetWindowWidth();
 
-    if (ImGui::Button("Generate Pipeline")) {
-    	saveFile();
+    float buttonWidth = 200.0f;
+    float padding = 12.0f;
+
+    ImGui::SameLine();
+    // Set the cursor position X to (window width - button width)
+    ImGui::SetCursorPosX(windowWidth - buttonWidth - padding);
+    if (ImGui::Button("Generate GVE Project Header", ImVec2(buttonWidth, 0))) {
+        saveFile();
     }
+    // Set up window layout: Left = Node Editor, Right = Edit Panel
+    ImGui::Columns(2, NULL, true);
 
-    ImGui::End();
+    // ========== Left: Pipeline Editor ==========
+    ImGui::BeginChild("PipelineEditor", ImVec2(0, 0), true);
 
     if (!editor.context) NodeEditorInitialize();
 
     ed::SetCurrentEditor(editor.context);
     ed::Begin("Pipeline Editor");
 
-    for (const auto& node : editor.nodes) node->render();
+    for (const auto& node : editor.nodes) {
+    	node->render();
+	    // Detect double-click on a PipelineNode
+		ed::NodeId clickedNode = ed::GetDoubleClickedNode();
+	    if (auto pipelineNode = dynamic_cast<PipelineNode*>(node.get())) {
+	        if (clickedNode.Get() == pipelineNode->id) {
+	            selectedPipelineNode = pipelineNode; // Store selected node
+	        }
+	    }
+    }
 
     if (ed::BeginCreate()) {
         Link link;
@@ -150,4 +170,36 @@ void showPipelineView() {
 
     ed::End();
     ed::SetCurrentEditor(nullptr);
+
+    ImGui::EndChild();
+
+    // Move to right panel
+    ImGui::NextColumn();
+
+    // ========== Right: Edit Panel ==========
+    ImGui::BeginChild("PipelineSettings", ImVec2(0, 0), true);
+
+    ImGui::Text("Pipeline Settings");
+    ImGui::Separator();
+
+    if (selectedPipelineNode&& selectedPipelineNode->settings) {
+        selectedPipelineNode->showInputAssemblySettings(selectedPipelineNode->settings.value());
+        selectedPipelineNode->showRasterizerSettings(selectedPipelineNode->settings.value());
+        selectedPipelineNode->showDepthStencilSettings(selectedPipelineNode->settings.value());
+        selectedPipelineNode->showMultisamplingSettings(selectedPipelineNode->settings.value());
+        selectedPipelineNode->showColorBlendingSettings(selectedPipelineNode->settings.value());
+        selectedPipelineNode->showShaderSettings(selectedPipelineNode->settings.value());
+    } else {
+        ImGui::Text("This node has no configurable pipeline settings.");
+    }
+
+    if (ImGui::Button("Cancel")) {
+        selectedPipelineNode = nullptr; // Reset selection
+    }
+
+
+    ImGui::EndChild();
+
+    // End column layout
+    ImGui::Columns(1);
 }

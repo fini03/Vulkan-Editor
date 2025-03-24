@@ -2,6 +2,8 @@
 #include "headers.h"
 #include "globalVariables.h"
 #include <iostream>
+#include <optional>
+#include "tinyfiledialogs.h"
 
 struct PipelineSettings {
     // Define settings for each category
@@ -44,12 +46,14 @@ struct PipelineSettings {
 
 class PipelineNode : public Node {
 public:
+	std::optional<PipelineSettings> settings = PipelineSettings{};
 	std::ofstream outFile;
     PipelineNode(int id) : Node(id) {
     	inputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexInput });
         inputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorInput });
         inputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureInput });
         inputPins.push_back({ ed::PinId(id * 10 + 4), PinType::DepthInput });
+
     }
 
     ~PipelineNode() override { }
@@ -290,6 +294,136 @@ public:
 
     void setTextureDataInput(TextureDataNode *textureData) {
         this->textureData = textureData;
+    }
+
+    void showInputAssemblySettings(PipelineSettings& settings) {
+        ImGui::Text("Input Assembly");
+        const char* topologyOptions[] = { "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST", "VK_PRIMITIVE_TOPOLOGY_LINE_LIST" };
+        ImGui::Combo("Vertex Topology", &settings.inputAssembly, topologyOptions, IM_ARRAYSIZE(topologyOptions));
+
+        ImGui::Checkbox("Primitive Restart", &settings.primitiveRestart);
+    }
+
+    void showRasterizerSettings(PipelineSettings& settings) {
+        ImGui::Separator();
+        ImGui::Text("Rasterizer");
+
+        ImGui::Checkbox("Depth Clamp", &settings.depthClamp);
+        ImGui::Checkbox("Rasterizer Discard", &settings.rasterizerDiscard);
+
+        const char* polygonModes[] = { "VK_POLYGON_MODE_FILL", "VK_POLYGON_MODE_LINE" };
+        ImGui::Combo("Polygon Mode", &settings.polygonMode, polygonModes, IM_ARRAYSIZE(polygonModes));
+
+        ImGui::InputFloat("Line Width", &settings.lineWidth);
+
+        const char* cullModes[] = { "VK_CULL_MODE_NONE", "VK_CULL_MODE_BACK_BIT" };
+        ImGui::Combo("Cull Mode", &settings.cullMode, cullModes, IM_ARRAYSIZE(cullModes));
+
+        const char* frontFaceOptions[] = { "VK_FRONT_FACE_CLOCKWISE", "VK_FRONT_FACE_COUNTER_CLOCKWISE" };
+        ImGui::Combo("Front Face", &settings.frontFace, frontFaceOptions, IM_ARRAYSIZE(frontFaceOptions));
+
+        ImGui::Checkbox("Depth Bias Enabled", &settings.depthBiasEnabled);
+
+        ImGui::InputFloat("Depth Bias Constant Factor", &settings.depthBiasConstantFactor);
+        ImGui::InputFloat("Depth Bias Clamp", &settings.depthBiasClamp);
+        ImGui::InputFloat("Depth Bias Slope Factor", &settings.depthBiasSlopeFactor);
+    }
+
+    void showDepthStencilSettings(PipelineSettings& settings) {
+        ImGui::Separator();
+        ImGui::Text("Depth & Stencil");
+
+        ImGui::Checkbox("Depth Test", &settings.depthTest);
+        ImGui::Checkbox("Depth Write", &settings.depthWrite);
+
+        const char* depthCompareOptions[] = { "VK_COMPARE_OP_LESS", "VK_COMPARE_OP_GREATER" };
+        ImGui::Combo("Depth Compare Operation", &settings.depthCompareOp, depthCompareOptions, IM_ARRAYSIZE(depthCompareOptions));
+
+        ImGui::Checkbox("Depth Bounds Test", &settings.depthBoundsTest);
+
+        ImGui::InputFloat("Depth Bounds Min", &settings.depthBoundsMin);
+        ImGui::InputFloat("Depth Bounds Max", &settings.depthBoundsMax);
+
+        ImGui::Checkbox("Stencil Test", &settings.stencilTest);
+    }
+
+    void showMultisamplingSettings(PipelineSettings& settings) {
+        ImGui::Separator();
+        ImGui::Text("Multisampling");
+
+        ImGui::Checkbox("Sample Shading", &settings.sampleShading);
+
+        const char* sampleCountOptions[] = { "VK_SAMPLE_COUNT_1_BIT", "VK_SAMPLE_COUNT_4_BIT" };
+        ImGui::Combo("Rasterization Samples", &settings.rasterizationSamples, sampleCountOptions, IM_ARRAYSIZE(sampleCountOptions));
+
+        ImGui::InputFloat("Min Sample Shading", &settings.minSampleShading);
+
+        ImGui::Checkbox("Alpha to Coverage", &settings.alphaToCoverage);
+        ImGui::Checkbox("Alpha to One", &settings.alphaToOne);
+    }
+
+    void showColorBlendingSettings(PipelineSettings& settings) {
+        ImGui::Separator();
+        ImGui::Text("Color Blending");
+
+
+        const char* colorWriteMaskOptions[] = { "VK_COLOR_COMPONENT_R_BIT", "VK_COLOR_COMPONENT_G_BIT", "VK_COLOR_COMPONENT_B_BIT", "VK_COLOR_COMPONENT_A_BIT" };
+        ImGui::Combo("Color Write Mask", &settings.colorWriteMask, colorWriteMaskOptions, IM_ARRAYSIZE(colorWriteMaskOptions));
+
+        ImGui::Checkbox("Color Blend", &settings.colorBlend);
+
+
+        const char* blendFactors[] = { "VK_BLEND_FACTOR_ONE", "VK_BLEND_FACTOR_ZERO" };
+        const char* blendOps[] = { "VK_BLEND_OP_ADD", "VK_BLEND_OP_SUBTRACT" };
+
+        ImGui::Combo("Source Color Blend Factor", &settings.srcColorBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
+        ImGui::Combo("Destination Color Blend Factor", &settings.dstColorBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
+        ImGui::Combo("Color Blend Operation", &settings.colorBlendOp, blendOps, IM_ARRAYSIZE(blendOps));
+
+        ImGui::Combo("Source Alpha Blend Factor", &settings.srcAlphaBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
+        ImGui::Combo("Destination Alpha Blend Factor", &settings.dstAlphaBlendFactor, blendFactors, IM_ARRAYSIZE(blendFactors));
+        ImGui::Combo("Alpha Blend Operation", &settings.alphaBlendOp, blendOps, IM_ARRAYSIZE(blendOps));
+
+        ImGui::Checkbox("Logic Operation Enabled", &settings.logicOpEnable);
+
+        const char* logicOps[] = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
+        ImGui::Combo("Logic Operation", &settings.logicOp, logicOps, IM_ARRAYSIZE(logicOps));
+
+        ImGui::InputInt("Attachment Count", &settings.attachmentCount);
+
+        ImGui::InputFloat4("Color Blend Constants", settings.blendConstants);
+    }
+
+    void showShaderFileSelector(PipelineSettings& settings) {
+        const char* filter[] = { "*.vert", "*.spv", "*.glsl", "*.txt", "*.*" }; // Shader file filters
+
+        ImGui::InputText("Vertex Shader File", settings.vertexShaderPath, IM_ARRAYSIZE(settings.vertexShaderPath));
+        ImGui::SameLine();
+        if (ImGui::Button("...##Vertex")) {
+            const char* selectedPath = tinyfd_openFileDialog("Select Vertex Shader", "", 5, filter, "Shader Files", 0);
+            if (selectedPath) {
+                strncpy(settings.vertexShaderPath, selectedPath, IM_ARRAYSIZE(settings.vertexShaderPath));
+            }
+        }
+
+        ImGui::InputText("Vertex Shader Entry Function", settings.vertexEntryName, IM_ARRAYSIZE(settings.vertexEntryName));
+
+        ImGui::InputText("Fragment Shader File", settings.fragmentShaderPath, IM_ARRAYSIZE(settings.fragmentShaderPath));
+        ImGui::SameLine();
+        if (ImGui::Button("...##Fragment")) {
+            const char* selectedPath = tinyfd_openFileDialog("Select Fragment Shader", "", 5, filter, "Shader Files", 0);
+            if (selectedPath) {
+                strncpy(settings.fragmentShaderPath, selectedPath, IM_ARRAYSIZE(settings.fragmentShaderPath));
+            }
+        }
+
+        ImGui::InputText("Fragment Shader Entry Function", settings.fragmentEntryName, IM_ARRAYSIZE(settings.fragmentEntryName));
+    }
+
+    void showShaderSettings(PipelineSettings& settings) {
+        ImGui::Separator();
+        ImGui::Text("Shaders");
+        showShaderFileSelector(settings);
     }
 
 private:
