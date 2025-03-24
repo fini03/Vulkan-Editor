@@ -218,8 +218,12 @@ public:
         }
 
         void initVulkan() {
-
-            initVMA(m_instance, m_physicalDevice, m_device, m_vmaAllocator);
+	        createInstance(&m_instance, m_validationLayers);
+	        setupDebugMessenger(m_instance);
+	        createSurface(m_instance, m_surface);
+	        pickPhysicalDevice(m_instance, m_deviceExtensions, m_surface, m_physicalDevice);
+	        createLogicalDevice(m_surface, m_physicalDevice, m_queueFamilies, m_validationLayers, m_deviceExtensions, m_device, m_graphicsQueue, m_presentQueue);
+	        initVMA(m_instance, m_physicalDevice, m_device, m_vmaAllocator);
             createSwapChain(m_surface, m_physicalDevice, m_device, m_swapChain);
             createImageViews(m_device, m_swapChain);
             createRenderPass(m_physicalDevice, m_device, m_swapChain, m_renderPass);
@@ -376,16 +380,6 @@ public:
             //ImGui_ImplVulkan_CreateFontsTexture(YOUR_COMMAND_BUFFER);
             // (your code submit a queue)
             //ImGui_ImplVulkan_DestroyFontUploadObjects();
-        }
-};
-
-        int main() {
-            VulkanTutorial tutorial;
-
-            tutorial.run();
-
-
-            return EXIT_SUCCESS;
         }
     )";
 

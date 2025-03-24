@@ -10,8 +10,8 @@ void generateGlobalVariables() {
     }
 
     outFile << R"(
-    const std::string m_MODEL_PATH = "models/viking_room.obj";
-    const std::string m_TEXTURE_PATH = "textures/viking_room.png";
+    const std::string m_MODEL_PATH = "data/models/viking_room.obj";
+    const std::string m_TEXTURE_PATH = "data/images/viking_room.png";
 
     const int MAX_FRAMES_IN_FLIGHT = 2;
 

@@ -268,10 +268,11 @@ public:
             vkDestroyShaderModule(device, fragShaderModule, nullptr);
             vkDestroyShaderModule(device, vertShaderModule, nullptr);
         }
-
+};
     )";
 
         outFile.close();
+        generateMain();
 
     }
 

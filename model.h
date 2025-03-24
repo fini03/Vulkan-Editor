@@ -120,15 +120,31 @@ public:
                 << "    bool operator==(const Vertex& other) const {\n"
                 << "        return pos == other.pos && color == other.color && texCoord == other.texCoord;\n"
                 << "    }\n"
-                << "};\n\n"
+                << "};\n\n";
 
-                << "namespace std {\n"
-                << "    template<> struct hash<Vertex> {\n"
-                << "        size_t operator()(Vertex const& vertex) const {\n"
-                << "            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);\n"
-                << "        }\n"
-                << "    };\n"
-                << "}\n";
+        outFile << R"(
+        namespace std {
+
+            template<> struct hash<glm::vec2> {
+                size_t operator()(glm::vec2 const& vec) const {
+                    return (hash<float>()(vec.x) ^ (hash<float>()(vec.y) << 1)) >> 1;
+                }
+            };
+
+            template<> struct hash<glm::vec3> {
+                size_t operator()(glm::vec3 const& vec) const {
+                    return ((hash<float>()(vec.x) ^ (hash<float>()(vec.y) << 1)) >> 1) ^ (hash<float>()(vec.z) << 1);
+                }
+            };
+
+            template<> struct hash<Vertex> {
+                size_t operator()(Vertex const& vertex) const {
+                    return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1)
+                        ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+                }
+            };
+        }
+        )";
 
         outFile.close();
         std::cout << "Vertex struct successfully written to Vertex.h\n";

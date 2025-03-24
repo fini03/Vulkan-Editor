@@ -23,10 +23,10 @@ void generateHeaders() {
     #include <glm/gtc/matrix_transform.hpp>
 
     #define STB_IMAGE_IMPLEMENTATION
-    #include <stb_image.h>
+    #include "libs/stb_image.h"
 
     #define TINYOBJLOADER_IMPLEMENTATION
-    #include <tiny_obj_loader.h>
+    #include "libs/tiny_obj_loader.h"
 
     #define VMA_IMPLEMENTATION
     //#define VMA_STATIC_VULKAN_FUNCTIONS 0
@@ -56,3 +56,27 @@ void generateHeaders() {
 
     )";
 }
+
+
+void generateMain() {
+	std::ofstream outFile;
+           outFile.open("Vertex.h", std::ios::app);
+           if (!outFile.is_open()) {
+               std::cerr << "Error opening file for writing.\n";
+               return;
+           }
+
+           outFile << R"(
+
+           int main() {
+               VulkanTutorial tutorial;
+
+               tutorial.run();
+
+
+               return EXIT_SUCCESS;
+           }
+       )";
+
+           outFile.close();
+       }
