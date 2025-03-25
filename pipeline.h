@@ -118,131 +118,130 @@ public:
 
         outFile << R"(
 
-        static std::vector<char> readFile(const std::string& filename) {
-            std::ifstream file(filename, std::ios::ate | std::ios::binary);
+    static std::vector<char> readFile(const std::string& filename) {
+        std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
-            if (!file.is_open()) {
-                throw std::runtime_error("failed to open file!");
-            }
-
-            size_t fileSize = (size_t) file.tellg();
-            std::vector<char> buffer(fileSize);
-
-            file.seekg(0);
-            file.read(buffer.data(), fileSize);
-
-            file.close();
-
-            return buffer;
+        if (!file.is_open()) {
+            throw std::runtime_error("failed to open file!");
         }
 
-        VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code) {
-            VkShaderModuleCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-            createInfo.codeSize = code.size();
-            createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+        size_t fileSize = (size_t) file.tellg();
+        std::vector<char> buffer(fileSize);
 
-            VkShaderModule shaderModule;
-            if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create shader module!");
-            }
+        file.seekg(0);
+        file.read(buffer.data(), fileSize);
 
-            return shaderModule;
+        file.close();
+
+        return buffer;
+    }
+
+    VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code) {
+        VkShaderModuleCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.codeSize = code.size();
+        createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+        VkShaderModule shaderModule;
+        if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create shader module!");
         }
 
-        void createGraphicsPipeline(VkDevice device, VkRenderPass renderPass
-            , VkDescriptorSetLayout descriptorSetLayout, Pipeline& graphicsPipeline) {
-        )";
+        return shaderModule;
+    }
 
-        outFile << "        auto vertShaderCode = readFile(\"" << settings.vertexShaderPath << "\");\n";
-        outFile << "        auto fragShaderCode = readFile(\"" << settings.fragmentShaderPath << "\");\n";
+    void createGraphicsPipeline(VkDevice device, VkRenderPass renderPass, VkDescriptorSetLayout descriptorSetLayout, Pipeline& graphicsPipeline) {
+)";
 
-        outFile << R"(
-            VkShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
-            VkShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
+    outFile << "        auto vertShaderCode = readFile(\"" << settings.vertexShaderPath << "\");\n";
+    outFile << "        auto fragShaderCode = readFile(\"" << settings.fragmentShaderPath << "\");\n";
 
-            VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-            vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-            vertShaderStageInfo.module = vertShaderModule;
-        )";
+    outFile << R"(
+        VkShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
+        VkShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
 
-        outFile << "	vertShaderStageInfo.pName = \"" << settings.vertexEntryName << "\";\n";
-        outFile << R"(
-            VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-            fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-            fragShaderStageInfo.module = fragShaderModule;
-        )";
-        outFile << "	fragShaderStageInfo.pName = \"" << settings.fragmentEntryName << "\";\n";
+        VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertShaderStageInfo.module = vertShaderModule;
+    )";
 
-        outFile << R"(
-            VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+    outFile << "	vertShaderStageInfo.pName = \"" << settings.vertexEntryName << "\";\n";
+    outFile << R"(
+        VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+        fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragShaderStageInfo.module = fragShaderModule;
+    )";
 
-            VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-            vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    outFile << "    fragShaderStageInfo.pName = \"" << settings.fragmentEntryName << "\";\n";
 
-            auto bindingDescription = Vertex::getBindingDescription();
-            auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    outFile << R"(
+        VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-            vertexInputInfo.vertexBindingDescriptionCount = 1;
-            vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-            vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-            vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+        VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-            VkPipelineViewportStateCreateInfo viewportState{};
-            viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-            viewportState.viewportCount = 1;
-            viewportState.scissorCount = 1;
-        )";
-        //std::ostringstream outFile;
-        // Inject pipeline settings directly into the code
-        outFile << "	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};\n";
-        outFile << "    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;\n";
-        outFile << "    inputAssembly.topology = " << topologyOptions[settings.inputAssembly] << ";\n";
-        outFile << "    inputAssembly.primitiveRestartEnable = "
-                     << (settings.primitiveRestart ? "VK_TRUE" : "VK_FALSE") << ";\n\n";
+        auto bindingDescription = Vertex::getBindingDescription();
+        auto attributeDescriptions = Vertex::getAttributeDescriptions();
 
-        outFile << "        VkPipelineRasterizationStateCreateInfo rasterizer{};\n";
-        outFile << "        rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;\n";
-        outFile << "        rasterizer.depthClampEnable = " << (settings.depthClamp ? "VK_TRUE" : "VK_FALSE") << ";\n";
-        outFile << "        rasterizer.rasterizerDiscardEnable = " << (settings.rasterizerDiscard ? "VK_TRUE" : "VK_FALSE") << ";\n";
-        outFile << "        rasterizer.polygonMode = " << polygonModes[settings.polygonMode] << ";\n";
-        outFile << "        rasterizer.lineWidth = " << settings.lineWidth << ";\n";
-        outFile << "        rasterizer.cullMode = " << cullModes[settings.cullMode] << ";\n";
-        outFile << "        rasterizer.frontFace = " << frontFaceOptions[settings.frontFace] << ";\n";
-        outFile << "        rasterizer.depthBiasEnable = " << (settings.depthBiasEnabled ? "VK_TRUE" : "VK_FALSE") << ";\n";
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-        outFile << "        VkPipelineMultisampleStateCreateInfo multisampling{};\n";
-        outFile << "        multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;\n";
-        outFile << "        multisampling.sampleShadingEnable = " << (settings.sampleShading ? "VK_TRUE" : "VK_FALSE") << ";\n";
-        outFile << "        multisampling.rasterizationSamples = " << sampleCountOptions[settings.rasterizationSamples] << ";\n";
+        VkPipelineViewportStateCreateInfo viewportState{};
+        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState.viewportCount = 1;
+        viewportState.scissorCount = 1;
 
-        outFile << "        VkPipelineDepthStencilStateCreateInfo depthStencil{};\n";
-        outFile << "        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;\n";
-        outFile << "        depthStencil.depthTestEnable = " << (settings.depthTest ? "VK_TRUE" : "VK_FALSE") << ";\n";
-        outFile << "        depthStencil.depthWriteEnable = " << (settings.depthWrite ? "VK_TRUE" : "VK_FALSE") << ";\n";
-        outFile << "        depthStencil.depthCompareOp = " << depthCompareOptions[settings.depthCompareOp] << ";\n";
-        outFile << "        depthStencil.depthBoundsTestEnable = " << (settings.depthBoundsTest ? "VK_TRUE" : "VK_FALSE") << ";\n";
-        outFile << "        depthStencil.stencilTestEnable = "  << (settings.stencilTest ? "VK_TRUE" : "VK_FALSE") << ";\n";
+    )";
 
-        outFile << "        VkPipelineColorBlendAttachmentState colorBlendAttachment{};\n";
-        outFile << "        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;\n";
-        outFile << "        colorBlendAttachment.blendEnable = " << (settings.colorBlend ? "VK_TRUE" : "VK_FALSE") << ";\n";
+    outFile << "	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};\n";
+    outFile << "        inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;\n";
+    outFile << "        inputAssembly.topology = " << topologyOptions[settings.inputAssembly] << ";\n";
+    outFile << "        inputAssembly.primitiveRestartEnable = "<< (settings.primitiveRestart ? "VK_TRUE" : "VK_FALSE") << ";\n\n";
 
-        outFile << "        VkPipelineColorBlendStateCreateInfo colorBlending{};\n";
-        outFile << "        colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;\n";
-        outFile << "        colorBlending.logicOpEnable = " << (settings.logicOpEnable ? "VK_TRUE" : "VK_FALSE") << ";\n";
-        outFile << "        colorBlending.logicOp = " << logicOps[settings.logicOp] << ";\n";
-        outFile << "        colorBlending.attachmentCount = " << settings.attachmentCount << ";\n";
-        outFile << "		colorBlending.pAttachments = &colorBlendAttachment;\n";
-        outFile << "        colorBlending.blendConstants[0] = " << settings.blendConstants[0] << ";\n";
-        outFile << "        colorBlending.blendConstants[1] = " << settings.blendConstants[1] << ";\n";
-        outFile << "        colorBlending.blendConstants[2] = " << settings.blendConstants[2] << ";\n";
-        outFile << "        colorBlending.blendConstants[3] = " << settings.blendConstants[3] << ";\n\n";
+    outFile << "        VkPipelineRasterizationStateCreateInfo rasterizer{};\n";
+    outFile << "        rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;\n";
+    outFile << "        rasterizer.depthClampEnable = " << (settings.depthClamp ? "VK_TRUE" : "VK_FALSE") << ";\n";
+    outFile << "        rasterizer.rasterizerDiscardEnable = " << (settings.rasterizerDiscard ? "VK_TRUE" : "VK_FALSE") << ";\n";
+    outFile << "        rasterizer.polygonMode = " << polygonModes[settings.polygonMode] << ";\n";
+    outFile << "        rasterizer.lineWidth = " << settings.lineWidth << ";\n";
+    outFile << "        rasterizer.cullMode = " << cullModes[settings.cullMode] << ";\n";
+    outFile << "        rasterizer.frontFace = " << frontFaceOptions[settings.frontFace] << ";\n";
+    outFile << "        rasterizer.depthBiasEnable = " << (settings.depthBiasEnabled ? "VK_TRUE" : "VK_FALSE") << ";\n\n";
+
+    outFile << "        VkPipelineMultisampleStateCreateInfo multisampling{};\n";
+    outFile << "        multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;\n";
+    outFile << "        multisampling.sampleShadingEnable = " << (settings.sampleShading ? "VK_TRUE" : "VK_FALSE") << ";\n";
+    outFile << "        multisampling.rasterizationSamples = " << sampleCountOptions[settings.rasterizationSamples] << ";\n\n";
+
+    outFile << "        VkPipelineDepthStencilStateCreateInfo depthStencil{};\n";
+    outFile << "        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;\n";
+    outFile << "        depthStencil.depthTestEnable = " << (settings.depthTest ? "VK_TRUE" : "VK_FALSE") << ";\n";
+    outFile << "        depthStencil.depthWriteEnable = " << (settings.depthWrite ? "VK_TRUE" : "VK_FALSE") << ";\n";
+    outFile << "        depthStencil.depthCompareOp = " << depthCompareOptions[settings.depthCompareOp] << ";\n";
+    outFile << "        depthStencil.depthBoundsTestEnable = " << (settings.depthBoundsTest ? "VK_TRUE" : "VK_FALSE") << ";\n";
+    outFile << "        depthStencil.stencilTestEnable = "  << (settings.stencilTest ? "VK_TRUE" : "VK_FALSE") << ";\n\n";
+
+    outFile << "        VkPipelineColorBlendAttachmentState colorBlendAttachment{};\n";
+    outFile << "        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;\n";
+    outFile << "        colorBlendAttachment.blendEnable = " << (settings.colorBlend ? "VK_TRUE" : "VK_FALSE") << ";\n\n";
+
+    outFile << "        VkPipelineColorBlendStateCreateInfo colorBlending{};\n";
+    outFile << "        colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;\n";
+    outFile << "        colorBlending.logicOpEnable = " << (settings.logicOpEnable ? "VK_TRUE" : "VK_FALSE") << ";\n";
+    outFile << "        colorBlending.logicOp = " << logicOps[settings.logicOp] << ";\n";
+    outFile << "        colorBlending.attachmentCount = " << settings.attachmentCount << ";\n";
+    outFile << "	    colorBlending.pAttachments = &colorBlendAttachment;\n";
+    outFile << "        colorBlending.blendConstants[0] = " << settings.blendConstants[0] << ";\n";
+    outFile << "        colorBlending.blendConstants[1] = " << settings.blendConstants[1] << ";\n";
+    outFile << "        colorBlending.blendConstants[2] = " << settings.blendConstants[2] << ";\n";
+    outFile << "        colorBlending.blendConstants[3] = " << settings.blendConstants[3] << ";\n";
 
 
-        outFile << R"(
+    outFile << R"(
         std::vector<VkDynamicState> dynamicStates = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR
@@ -286,7 +285,7 @@ public:
         vkDestroyShaderModule(device, vertShaderModule, nullptr);
     }
 };
-        )";
+    )";
         outFile.close();
 
         generateMain();

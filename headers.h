@@ -10,73 +10,72 @@ void generateHeaders() {
     }
 
     outFile << R"(
-    #include "vulkan/vulkan.h"
+#include "vulkan/vulkan.h"
 
-    #define SDL_MAIN_HANDLED
-    #include <SDL2/SDL.h>
-    #include <SDL2/SDL_vulkan.h>
+#define SDL_MAIN_HANDLED
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_vulkan.h>
 
-    #define GLM_FORCE_RADIANS
-    #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-    #define GLM_ENABLE_EXPERIMENTAL
-    #include <glm/glm.hpp>
-    #include <glm/gtc/matrix_transform.hpp>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
-    #define STB_IMAGE_IMPLEMENTATION
-    #include "libs/stb_image.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "libs/stb_image.h"
 
-    #define TINYOBJLOADER_IMPLEMENTATION
-    #include "libs/tiny_obj_loader.h"
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "libs/tiny_obj_loader.h"
 
-    #define VMA_IMPLEMENTATION
-    //#define VMA_STATIC_VULKAN_FUNCTIONS 0
-    #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
-    #include "vk_mem_alloc.h"
+#define VMA_IMPLEMENTATION
+//#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
+#include "vk_mem_alloc.h"
 
-    #define IMGUI_IMPL_VULKAN_USE_VULKAN
-    #include "imgui/imgui.h"
-    #include "imgui/backends/imgui_impl_sdl2.h"
-    #include "imgui/backends/imgui_impl_vulkan.h"
+#define IMGUI_IMPL_VULKAN_USE_VULKAN
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_sdl2.h"
+#include "imgui/backends/imgui_impl_vulkan.h"
 
 
-    #include <iostream>
-    #include <fstream>
-    #include <stdexcept>
-    #include <algorithm>
-    #include <chrono>
-    #include <vector>
-    #include <cstring>
-    #include <cstdlib>
-    #include <cstdint>
-    #include <limits>
-    #include <array>
-    #include <optional>
-    #include <set>
-    #include <unordered_map>
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
+#include <algorithm>
+#include <chrono>
+#include <vector>
+#include <cstring>
+#include <cstdlib>
+#include <cstdint>
+#include <limits>
+#include <array>
+#include <optional>
+#include <set>
+#include <unordered_map>
 
-    )";
+)";
 }
 
 
 void generateMain() {
 	std::ofstream outFile;
-           outFile.open("Vertex.h", std::ios::app);
-           if (!outFile.is_open()) {
-               std::cerr << "Error opening file for writing.\n";
-               return;
-           }
+    outFile.open("Vertex.h", std::ios::app);
+    if (!outFile.is_open()) {
+        std::cerr << "Error opening file for writing.\n";
+        return;
+    }
 
-           outFile << R"(
+    outFile << R"(
 
-           int main() {
-               VulkanTutorial tutorial;
+int main() {
+    VulkanTutorial tutorial;
 
-               tutorial.run();
+    tutorial.run();
 
 
-               return EXIT_SUCCESS;
-           }
-       )";
+    return EXIT_SUCCESS;
+})";
 
-           outFile.close();
-       }
+    outFile.close();
+}

@@ -329,18 +329,7 @@ private:
             ImGuiWindowFlags_NoTitleBar |
             ImGuiWindowFlags_NoResize);
 
-        if (ImGui::BeginTabBar("MainTabBar")) {
-            if (ImGui::BeginTabItem("Model")) {
-            	showModelView(context);
-            }
-
-            if (ImGui::BeginTabItem("Graphics Pipeline")) {
-                showPipelineView();
-                ImGui::EndTabItem();
-            }
-
-            ImGui::EndTabBar();
-        }
+        startEditor();
 
         ImGui::End();
     }

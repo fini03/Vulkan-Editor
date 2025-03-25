@@ -10,155 +10,152 @@ void generateGlobalVariables() {
     }
 
     outFile << R"(
-    const std::string m_MODEL_PATH = "data/models/viking_room.obj";
-    const std::string m_TEXTURE_PATH = "data/images/viking_room.png";
+const int MAX_FRAMES_IN_FLIGHT = 2;
 
-    const int MAX_FRAMES_IN_FLIGHT = 2;
+const std::vector<const char*> m_validationLayers = {
+    "VK_LAYER_KHRONOS_validation"
+};
 
-    const std::vector<const char*> m_validationLayers = {
-        "VK_LAYER_KHRONOS_validation"
-    };
+std::vector<const char*> m_sdl_instance_extensions = {};
 
-    std::vector<const char*> m_sdl_instance_extensions = {};
+#ifdef __APPLE__
+const std::vector<const char*> m_deviceExtensions = {
+    "VK_KHR_swapchain",
+    "VK_KHR_portability_subset"
+};
+#else
+const std::vector<const char*> m_deviceExtensions = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+#endif
 
-    #ifdef __APPLE__
-    const std::vector<const char*> m_deviceExtensions = {
-        "VK_KHR_swapchain",
-        "VK_KHR_portability_subset"
-    };
-    #else
-    const std::vector<const char*> m_deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
-    #endif
-
-    #ifdef NDEBUG
-    const bool enableValidationLayers = false;
-    #else
-    const bool enableValidationLayers = true;
-    #endif
+#ifdef NDEBUG
+const bool enableValidationLayers = false;
+#else
+const bool enableValidationLayers = true;
+#endif
 
 
-    //ImGUI
-    static void check_vk_result(VkResult err)
-    {
-        if (err == 0)
-            return;
-        fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
-        if (err < 0)
-            abort();
+//ImGUI
+static void check_vk_result(VkResult err)
+{
+    if (err == 0)
+        return;
+    fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
+    if (err < 0)
+        abort();
+}
+
+struct QueueFamilyIndices {
+    std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
+
+    bool isComplete() {
+        return graphicsFamily.has_value() && presentFamily.has_value();
     }
+};
 
-    struct QueueFamilyIndices {
-        std::optional<uint32_t> graphicsFamily;
-        std::optional<uint32_t> presentFamily;
+struct SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> presentModes;
+};
 
-        bool isComplete() {
-            return graphicsFamily.has_value() && presentFamily.has_value();
-        }
-    };
+VmaAllocator m_vmaAllocator;
 
-    struct SwapChainSupportDetails {
-        VkSurfaceCapabilitiesKHR capabilities;
-        std::vector<VkSurfaceFormatKHR> formats;
-        std::vector<VkPresentModeKHR> presentModes;
-    };
+SDL_Window* m_sdlWindow{nullptr};
+bool m_isMinimized = false;
+bool m_quit = false;
 
-    VmaAllocator m_vmaAllocator;
+VkInstance m_instance;
+VkDebugUtilsMessengerEXT m_debugMessenger;
+VkSurfaceKHR m_surface;
 
-    SDL_Window* m_sdlWindow{nullptr};
-    bool m_isMinimized = false;
-    bool m_quit = false;
+VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+VkDevice m_device;
 
-    VkInstance m_instance;
-    VkDebugUtilsMessengerEXT m_debugMessenger;
-    VkSurfaceKHR m_surface;
+QueueFamilyIndices m_queueFamilies;
+VkQueue m_graphicsQueue;
+VkQueue m_presentQueue;
 
-    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-    VkDevice m_device;
+struct SwapChain {
+    VkSwapchainKHR m_swapChain;
+    std::vector<VkImage> m_swapChainImages;
+    VkFormat m_swapChainImageFormat;
+    VkExtent2D m_swapChainExtent;
+    std::vector<VkImageView> m_swapChainImageViews;
+    std::vector<VkFramebuffer> m_swapChainFramebuffers;
+} m_swapChain;
 
-    QueueFamilyIndices m_queueFamilies;
-    VkQueue m_graphicsQueue;
-    VkQueue m_presentQueue;
+VkRenderPass m_renderPass;
+VkDescriptorSetLayout m_descriptorSetLayout;
 
-    struct SwapChain {
-        VkSwapchainKHR m_swapChain;
-        std::vector<VkImage> m_swapChainImages;
-        VkFormat m_swapChainImageFormat;
-        VkExtent2D m_swapChainExtent;
-        std::vector<VkImageView> m_swapChainImageViews;
-        std::vector<VkFramebuffer> m_swapChainFramebuffers;
-    } m_swapChain;
+struct Pipeline {
+    VkPipelineLayout m_pipelineLayout;
+    VkPipeline m_pipeline;
+} m_graphicsPipeline;
 
-    VkRenderPass m_renderPass;
-    VkDescriptorSetLayout m_descriptorSetLayout;
+struct DepthImage {
+    VkImage         m_depthImage;
+    VmaAllocation   m_depthImageAllocation;
+    VkImageView     m_depthImageView;
+} m_depthImage;
 
-    struct Pipeline {
-        VkPipelineLayout m_pipelineLayout;
-        VkPipeline m_pipeline;
-    } m_graphicsPipeline;
+//The texture of an object
+struct Texture {
+    VkImage         m_textureImage;
+    VmaAllocation   m_textureImageAllocation;
+    VkImageView     m_textureImageView;
+    VkSampler       m_textureSampler;
+};
 
-    struct DepthImage {
-        VkImage         m_depthImage;
-        VmaAllocation   m_depthImageAllocation;
-        VkImageView     m_depthImageView;
-    } m_depthImage;
+//Mesh of an object
+struct Geometry {
+    std::vector<Vertex>     m_vertices;
+    std::vector<uint32_t>   m_indices;
+    VkBuffer                m_vertexBuffer;
+    VmaAllocation           m_vertexBufferAllocation;
+    VkBuffer                m_indexBuffer;
+    VmaAllocation           m_indexBufferAllocation;
+};
 
-	//The texture of an object
-    struct Texture {
-        VkImage         m_textureImage;
-        VmaAllocation   m_textureImageAllocation;
-        VkImageView     m_textureImageView;
-        VkSampler       m_textureSampler;
-    };
+//Uniform buffers of an object
+struct UniformBuffers {
+    std::vector<VkBuffer>       m_uniformBuffers;
+    std::vector<VmaAllocation>  m_uniformBuffersAllocation;
+    std::vector<void*>          m_uniformBuffersMapped;
+};
 
-	//Mesh of an object
-    struct Geometry {
-        std::vector<Vertex>     m_vertices;
-        std::vector<uint32_t>   m_indices;
-        VkBuffer                m_vertexBuffer;
-        VmaAllocation           m_vertexBufferAllocation;
-        VkBuffer                m_indexBuffer;
-        VmaAllocation           m_indexBufferAllocation;
-    };
+VkDescriptorPool m_descriptorPool;
 
-	//Uniform buffers of an object
-    struct UniformBuffers {
-        std::vector<VkBuffer>       m_uniformBuffers;
-        std::vector<VmaAllocation>  m_uniformBuffersAllocation;
-        std::vector<void*>          m_uniformBuffersMapped;
-    };
+struct UniformBufferObject {
+	alignas(16) glm::mat4 model;
+	alignas(16) glm::mat4 view;
+	alignas(16) glm::mat4 proj;
+};
 
-    VkDescriptorPool m_descriptorPool;
+//This holds all information an object with texture needs!
+struct Object {
+	UniformBufferObject m_ubo; //holds model, view and proj matrix
+	UniformBuffers m_uniformBuffers;
+	Texture m_texture;
+	Geometry m_geometry;
+	std::vector<VkDescriptorSet> m_descriptorSets;
+};
 
-	struct UniformBufferObject {
-		alignas(16) glm::mat4 model;
-		alignas(16) glm::mat4 view;
-		alignas(16) glm::mat4 proj;
-	};
+std::vector<Object> m_objects;
 
-	//This holds all information an object with texture needs!
-	struct Object {
-		UniformBufferObject m_ubo; //holds model, view and proj matrix
-		UniformBuffers m_uniformBuffers;
-		Texture m_texture;
-		Geometry m_geometry;
-		std::vector<VkDescriptorSet> m_descriptorSets;
-	};
+VkCommandPool m_commandPool;
+std::vector<VkCommandBuffer> m_commandBuffers;
 
-	std::vector<Object> m_objects;
+struct SyncObjects {
+    std::vector<VkSemaphore> m_imageAvailableSemaphores;
+    std::vector<VkSemaphore> m_renderFinishedSemaphores;
+    std::vector<VkFence>     m_inFlightFences;
+} m_syncObjects;
 
-    VkCommandPool m_commandPool;
-    std::vector<VkCommandBuffer> m_commandBuffers;
+uint32_t m_currentFrame = 0;
+bool m_framebufferResized = false;
 
-    struct SyncObjects {
-        std::vector<VkSemaphore> m_imageAvailableSemaphores;
-        std::vector<VkSemaphore> m_renderFinishedSemaphores;
-        std::vector<VkFence>     m_inFlightFences;
-    } m_syncObjects;
-
-    uint32_t m_currentFrame = 0;
-    bool m_framebufferResized = false;
-
-    )";
+)";
 }

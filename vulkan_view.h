@@ -42,34 +42,6 @@ void saveFile() {
     }
 }
 
-void showModelView(VulkanContext* context) {
-    static char modelPath[256] = "data/models/viking_room.obj";
-    static char texturePath[256] = "data/images/viking_room.png";
-
-    ImGui::Text("Model File:");
-    ImGui::InputText("##modelFile", modelPath, IM_ARRAYSIZE(modelPath));
-    ImGui::SameLine();
-    if (ImGui::Button("...##Model")) {
-        const char* filter[] = { "*.obj", "*.fbx", "*.gltf", "*.glb", "*.dae", "*.*" }; // Model file filters
-        const char* selectedPath = tinyfd_openFileDialog("Select Model File", "", 6, filter, "Model Files", 0);
-        if (selectedPath) {
-            strncpy(modelPath, selectedPath, IM_ARRAYSIZE(modelPath));
-        }
-    }
-
-    ImGui::Text("Texture File:");
-    ImGui::InputText("##textureFile", texturePath, IM_ARRAYSIZE(texturePath));
-    ImGui::SameLine();
-    if (ImGui::Button("...##Texture")) {
-        const char* filter[] = { "*.png", "*.jpg", "*.jpeg", "*.tga", "*.bmp", "*.dds", "*.*" }; // Texture file filters
-        const char* selectedPath = tinyfd_openFileDialog("Select Texture File", "", 7, filter, "Texture Files", 0);
-        if (selectedPath) {
-            strncpy(texturePath, selectedPath, IM_ARRAYSIZE(texturePath));
-        }
-    }
-    ImGui::EndTabItem();
-}
-
 static PipelineNode* selectedPipelineNode = nullptr;
 void showPipelineView() {
 	// Place the Generate button on the same row, aligned to the right.
@@ -203,4 +175,20 @@ void showPipelineView() {
 
     // End column layout
     ImGui::Columns(1);
+}
+
+void startEditor() {
+	if (ImGui::BeginTabBar("MainTabBar")) {
+    	if (ImGui::BeginTabItem("Model")) {
+    	   	showModelView();
+          	ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Graphics Pipeline")) {
+        	showPipelineView();
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
 }
