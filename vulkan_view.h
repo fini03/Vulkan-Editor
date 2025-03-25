@@ -37,7 +37,7 @@ void NodeEditorInitialize() {
 void saveFile() {
     for (const auto& node : editor.nodes) {
         if (auto pipelineNode = dynamic_cast<PipelineNode*>(node.get())) {
-            pipelineNode->generate();
+            pipelineNode->generate(pipelineNode->settings.value());
         }
     }
 }
@@ -69,6 +69,7 @@ void showModelView(VulkanContext* context) {
     }
     ImGui::EndTabItem();
 }
+
 static PipelineNode* selectedPipelineNode = nullptr;
 void showPipelineView() {
 	// Place the Generate button on the same row, aligned to the right.
