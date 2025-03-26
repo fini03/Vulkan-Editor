@@ -85,7 +85,6 @@ struct Vertex {
 
 
 namespace std {
-
     template<> struct hash<glm::vec2> {
         size_t operator()(glm::vec2 const& vec) const {
             return (hash<float>()(vec.x) ^ (hash<float>()(vec.y) << 1)) >> 1;
@@ -714,7 +713,7 @@ class VulkanTutorial {
         createDescriptorSets(device, object.m_texture, descriptorSetLayout, object.m_uniformBuffers, descriptorPool, object.m_descriptorSets);
         objects.push_back(object);
     }
-
+    
     void createSyncObjects(VkDevice device, SyncObjects& syncObjects) {
         syncObjects.m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         syncObjects.m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -970,7 +969,7 @@ class VulkanTutorial {
         swapChain.m_swapChainExtent = extent;
     }
 
-
+    
     void createRenderPass(VkPhysicalDevice physicalDevice, VkDevice device, SwapChain& swapChain, VkRenderPass& renderPass) {
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format = swapChain.m_swapChainImageFormat;
@@ -1100,7 +1099,7 @@ class VulkanTutorial {
         }
     }
 
-
+    
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
 
         auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
@@ -1384,7 +1383,7 @@ class VulkanTutorial {
         }
     }
 
-
+    
 
     void createSurface(VkInstance instance, VkSurfaceKHR& surface) {
         if (SDL_Vulkan_CreateSurface(m_sdlWindow, instance, &surface) == 0) {
@@ -1764,7 +1763,7 @@ class VulkanTutorial {
         // (your code submit a queue)
         //ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
-
+    
 
     static std::vector<char> readFile(const std::string& filename) {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -1921,7 +1920,7 @@ class VulkanTutorial {
         vkDestroyShaderModule(device, vertShaderModule, nullptr);
     }
 };
-
+    
 
 int main() {
     VulkanTutorial tutorial;

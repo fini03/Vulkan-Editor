@@ -11,7 +11,10 @@ const char* cullModes[] = { "VK_CULL_MODE_NONE", "VK_CULL_MODE_BACK_BIT" };
 const char* frontFaceOptions[] = { "VK_FRONT_FACE_CLOCKWISE", "VK_FRONT_FACE_COUNTER_CLOCKWISE" };
 const char* depthCompareOptions[] = { "VK_COMPARE_OP_LESS", "VK_COMPARE_OP_GREATER" };
 const char* sampleCountOptions[] = { "VK_SAMPLE_COUNT_1_BIT", "VK_SAMPLE_COUNT_4_BIT" };
-const char* colorWriteMaskOptions[] = { "VK_COLOR_COMPONENT_R_BIT", "VK_COLOR_COMPONENT_G_BIT", "VK_COLOR_COMPONENT_B_BIT", "VK_COLOR_COMPONENT_A_BIT" };
+const char* colorWriteMaskNames[] = {
+        "Red", "Green", "Blue", "Alpha"
+    };
+const uint32_t colorWriteMaskOptions[] = { VK_COLOR_COMPONENT_R_BIT, VK_COLOR_COMPONENT_G_BIT, VK_COLOR_COMPONENT_B_BIT, VK_COLOR_COMPONENT_A_BIT };
 const char* logicOps[] = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
 
 struct PipelineSettings {
@@ -226,7 +229,35 @@ public:
     outFile << "        depthStencil.stencilTestEnable = "  << (settings.stencilTest ? "VK_TRUE" : "VK_FALSE") << ";\n\n";
 
     outFile << "        VkPipelineColorBlendAttachmentState colorBlendAttachment{};\n";
-    outFile << "        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;\n";
+    outFile << "        colorBlendAttachment.colorWriteMask = ";
+
+    // Convert selected colorWriteMask to a string
+    bool first = true;
+    if (settings.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) {
+        outFile << "VK_COLOR_COMPONENT_R_BIT";
+        first = false;
+    }
+    if (settings.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) {
+        if (!first) outFile << " | ";
+        outFile << "VK_COLOR_COMPONENT_G_BIT";
+        first = false;
+    }
+    if (settings.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) {
+        if (!first) outFile << " | ";
+        outFile << "VK_COLOR_COMPONENT_B_BIT";
+        first = false;
+    }
+    if (settings.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) {
+        if (!first) outFile << " | ";
+        outFile << "VK_COLOR_COMPONENT_A_BIT";
+    }
+
+    // If no bits are set, default to 0
+    if (settings.colorWriteMask == 0) {
+        outFile << "0";
+    }
+
+    outFile << ";\n";
     outFile << "        colorBlendAttachment.blendEnable = " << (settings.colorBlend ? "VK_TRUE" : "VK_FALSE") << ";\n\n";
 
     outFile << "        VkPipelineColorBlendStateCreateInfo colorBlending{};\n";
@@ -360,7 +391,18 @@ public:
         ImGui::Separator();
         ImGui::Text("Color Blending");
 
-        ImGui::Combo("Color Write Mask", &settings.colorWriteMask, colorWriteMaskOptions, IM_ARRAYSIZE(colorWriteMaskOptions));
+        ImGui::Text("Color Write Mask (Multiple selection)");
+
+        for (int i = 0; i < 4; i++) {
+            bool selected = (settings.colorWriteMask & colorWriteMaskOptions[i]) != 0;
+            if (ImGui::Checkbox(colorWriteMaskNames[i], &selected)) {
+            	if (selected)
+                	settings.colorWriteMask |= colorWriteMaskOptions[i];  // Enable flag
+                else
+                	settings.colorWriteMask &= ~colorWriteMaskOptions[i]; // Disable flag
+            }
+            if (i < 3) ImGui::SameLine();
+        }
 
         ImGui::Checkbox("Color Blend", &settings.colorBlend);
 
