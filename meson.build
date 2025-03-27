@@ -30,18 +30,34 @@ imgui_files = files(
 
 # Vulkan Files
 vulkan_files = files(
-  'vulkan_editor/vulkan_device.cpp',
-  'vulkan_editor/vulkan_swapchain.cpp',
-  'vulkan_editor/vulkan_renderpass.cpp',
+  'vulkan_base/vulkan_device.cpp',
+  'vulkan_base/vulkan_swapchain.cpp',
+  'vulkan_base/vulkan_renderpass.cpp',
+)
+
+editor_files = files(
+	'vulkan_editor/vulkan_view.cpp',
+	'vulkan_editor/swapchain.cpp',
+	'vulkan_editor/pipeline.cpp',
+	'vulkan_editor/model.cpp',
+	'vulkan_editor/application.cpp',
+	'vulkan_editor/device.cpp',
+	'vulkan_editor/renderpass.cpp',
 )
 
 # Source Files
-source_files = files('main.cpp') + files('libs/tinyfiledialogs.cpp', 'libs/tinyxml2.cpp') + vulkan_files + imgui_files
+source_files = files('main.cpp') + files('libs/tinyfiledialogs.cpp', 'libs/tinyxml2.cpp') + vulkan_files + imgui_files + editor_files
+
+inja_dep = dependency('inja', required: false)
+if not inja_dep.found()
+    inja_sp = subproject('inja')
+    inja_dep = inja_sp.get_variable('inja_dep')
+endif
 
 # Executable
 executable(
   'main', source_files,
-  dependencies: [sdl3, vulkan, glm],
+  dependencies: [sdl3, vulkan, glm, inja_dep],
   include_directories: ['libs', 'imgui', 'imgui/backends'],
   #cpp_args: ['-DNDEBUG']
 )

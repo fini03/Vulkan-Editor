@@ -1,15 +1,11 @@
-#pragma once
-#include "node.h"
-#include <fstream>
+#include "application.h"
 
-class ApplicationNode : public Node {
-public:
-	ApplicationNode(int id) : Node(id) {}
-	~ApplicationNode() override { }
+	ApplicationNode::ApplicationNode(int id) : Node(id) {}
+	ApplicationNode::~ApplicationNode() { }
 
-	void render() const override {}
-	std::ofstream outFile;
-	void generateApplication() {
+	void ApplicationNode::render() const {}
+
+	void ApplicationNode::generateApplication() {
         outFile.open("Vertex.h", std::ios::app);
         if (!outFile.is_open()) {
             std::cerr << "Error opening file for writing.\n";
@@ -400,4 +396,3 @@ public:
 
         outFile.close();
     }
-};

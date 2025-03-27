@@ -1,9 +1,10 @@
+#include "pipeline.h"
 #include "model.h"
 #include "headers.h"
 #include "globalVariables.h"
 #include <iostream>
-#include <optional>
-#include "tinyfiledialogs.h"
+#include "../libs/tinyfiledialogs.h"
+#include <vulkan/vulkan.h>
 
 const char* topologyOptions[] = { "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST", "VK_PRIMITIVE_TOPOLOGY_LINE_LIST" };
 const char* polygonModes[] = { "VK_POLYGON_MODE_FILL", "VK_POLYGON_MODE_LINE" };
@@ -17,44 +18,7 @@ const char* colorWriteMaskNames[] = {
 const uint32_t colorWriteMaskOptions[] = { VK_COLOR_COMPONENT_R_BIT, VK_COLOR_COMPONENT_G_BIT, VK_COLOR_COMPONENT_B_BIT, VK_COLOR_COMPONENT_A_BIT };
 const char* logicOps[] = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
 
-struct PipelineSettings {
-    // Define settings for each category
-    int inputAssembly = 0;
-    bool primitiveRestart = false;
-
-    bool depthClamp = false, rasterizerDiscard = false;
-    int polygonMode = 0;
-    float lineWidth = 0;
-    int cullMode = 0;
-    int frontFace = 0;
-    bool depthBiasEnabled = false;
-
-    bool depthTest = true, depthWrite = true;
-    int depthCompareOp = 0;
-    bool depthBoundsTest = false;
-    bool stencilTest = false;
-
-    bool sampleShading = false;
-    int rasterizationSamples = 0;
-
-    int colorWriteMask = 0xF;
-    bool colorBlend = false;
-    bool logicOpEnable = false;
-    int logicOp = 0;
-    int attachmentCount = 1;
-    float blendConstants[4] = { 0.0f, 1.0f, 2.0f, 3.0f };
-
-    char vertexShaderPath[256] = "path/to/shader.vert";
-    char vertexEntryName[64] = "main";
-    char fragmentShaderPath[256] = "path/to/shader.frag";
-    char fragmentEntryName[64] = "main";
-};
-
-class PipelineNode : public Node {
-public:
-	std::optional<PipelineSettings> settings = PipelineSettings{};
-	std::ofstream outFile;
-    PipelineNode(int id) : Node(id) {
+PipelineNode::PipelineNode(int id) : Node(id) {
     	inputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexInput });
         inputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorInput });
         inputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureInput });
@@ -62,9 +26,9 @@ public:
 
     }
 
-    ~PipelineNode() override { }
+    PipelineNode::~PipelineNode() { }
 
-    void render() const override {
+    void PipelineNode::render() const {
     	ed::BeginNode(this->id);
 	    ImGui::Text("Pipeline");
 
@@ -88,7 +52,7 @@ public:
    		}
     }
 
-    void generate(const PipelineSettings& settings) {
+    void PipelineNode::generate(const PipelineSettings& settings) {
         if (!vertexData) {
             std::cerr << "No vertex data input set" << std::endl;
             return;
@@ -322,23 +286,7 @@ public:
         generateMain();
     }
 
-    void setModel(ModelNode *model) {
-        this->model = model;
-    }
-
-    void setVertexDataInput(VertexDataNode *vertexData) {
-        this->vertexData = vertexData;
-    }
-
-    void setColorDataInput(ColorDataNode *colorData) {
-        this->colorData = colorData;
-    }
-
-    void setTextureDataInput(TextureDataNode *textureData) {
-        this->textureData = textureData;
-    }
-
-    void showInputAssemblySettings(PipelineSettings& settings) {
+    void PipelineNode::showInputAssemblySettings(PipelineSettings& settings) {
         ImGui::Text("Input Assembly");
 
         ImGui::Combo("Vertex Topology", &settings.inputAssembly, topologyOptions, IM_ARRAYSIZE(topologyOptions));
@@ -346,7 +294,7 @@ public:
         ImGui::Checkbox("Primitive Restart", &settings.primitiveRestart);
     }
 
-    void showRasterizerSettings(PipelineSettings& settings) {
+    void PipelineNode::showRasterizerSettings(PipelineSettings& settings) {
         ImGui::Separator();
         ImGui::Text("Rasterizer");
 
@@ -364,7 +312,7 @@ public:
         ImGui::Checkbox("Depth Bias Enabled", &settings.depthBiasEnabled);
     }
 
-    void showDepthStencilSettings(PipelineSettings& settings) {
+    void PipelineNode::showDepthStencilSettings(PipelineSettings& settings) {
         ImGui::Separator();
         ImGui::Text("Depth & Stencil");
 
@@ -378,7 +326,7 @@ public:
         ImGui::Checkbox("Stencil Test", &settings.stencilTest);
     }
 
-    void showMultisamplingSettings(PipelineSettings& settings) {
+    void PipelineNode::showMultisamplingSettings(PipelineSettings& settings) {
         ImGui::Separator();
         ImGui::Text("Multisampling");
 
@@ -387,7 +335,7 @@ public:
         ImGui::Combo("Rasterization Samples", &settings.rasterizationSamples, sampleCountOptions, IM_ARRAYSIZE(sampleCountOptions));
     }
 
-    void showColorBlendingSettings(PipelineSettings& settings) {
+    void PipelineNode::showColorBlendingSettings(PipelineSettings& settings) {
         ImGui::Separator();
         ImGui::Text("Color Blending");
 
@@ -415,7 +363,7 @@ public:
         ImGui::InputFloat4("Color Blend Constants", settings.blendConstants);
     }
 
-    void showShaderFileSelector(PipelineSettings& settings) {
+    void PipelineNode::showShaderFileSelector(PipelineSettings& settings) {
         const char* filter[] = { "*.vert", "*.spv", "*.glsl", "*.txt", "*.*" }; // Shader file filters
 
         ImGui::InputText("Vertex Shader File", settings.vertexShaderPath, IM_ARRAYSIZE(settings.vertexShaderPath));
@@ -441,15 +389,8 @@ public:
         ImGui::InputText("Fragment Shader Entry Function", settings.fragmentEntryName, IM_ARRAYSIZE(settings.fragmentEntryName));
     }
 
-    void showShaderSettings(PipelineSettings& settings) {
+    void PipelineNode::showShaderSettings(PipelineSettings& settings) {
         ImGui::Separator();
         ImGui::Text("Shaders");
         showShaderFileSelector(settings);
     }
-
-private:
-	ModelNode *model = nullptr;
-    VertexDataNode *vertexData = nullptr;
-    ColorDataNode *colorData = nullptr;
-    TextureDataNode *textureData = nullptr;
-};

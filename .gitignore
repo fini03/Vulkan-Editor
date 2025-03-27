@@ -1,6 +1,6 @@
 main
 .DS_Store
-a.out
+code
 imgui
 imgui.ini
 shaders/compiled_shaders/*
@@ -11,5 +11,6 @@ shaders/compiled_shaders/*
 .cache
 !/subprojects/*.wrap
 !/subprojects/packagefiles
+subprojects/inja
 imgui-node-editor
 NodeEditor.json

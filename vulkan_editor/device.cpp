@@ -1,15 +1,11 @@
-#pragma once
-#include "application.h"
-#include <fstream>
+#include "device.h"
 
-class DeviceNode : public Node {
-public:
-	DeviceNode(int id) : Node(id) {}
-	~DeviceNode() override { }
+	DeviceNode::DeviceNode(int id) : Node(id) {}
+	DeviceNode::~DeviceNode() { }
 
-	void render() const override {}
-	std::ofstream outFile;
-	void generateDevice() {
+	void DeviceNode::render() const {}
+
+	void DeviceNode::generateDevice() {
         outFile.open("Vertex.h", std::ios::app);
         if (!outFile.is_open()) {
             std::cerr << "Error opening file for writing.\n";
@@ -306,4 +302,3 @@ public:
         ApplicationNode application{id};
         application.generateApplication();
     }
-};

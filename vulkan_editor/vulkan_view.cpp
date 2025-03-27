@@ -1,49 +1,28 @@
-#include "imgui/imgui.h"
-#include "imgui-node-editor/imgui_node_editor.h"
+#include "vulkan_view.h"
 #include "model.h"
-#include "pipeline.h"
-#include "tinyfiledialogs.h"
-#include "vulkan_editor/vulkan_base.h"
-#include <SDL3/SDL_video.h>
-#include <algorithm>
-#include <map>
-#include "vulkan_config.h"
-#include "libs/tinyxml2.h"
-#include <fstream>
-#include <memory>
-#include <optional>
 
-namespace ed = ax::NodeEditor;
+PipelineNode* selectedPipelineNode = nullptr;
+ModelNode* selectedModelNode = nullptr;
 
-VulkanConfig config = {};
-namespace ed = ax::NodeEditor;
-
-
-struct Editor {
-    ed::EditorContext* context = nullptr;
-    std::vector<std::unique_ptr<Node>> nodes;
-    std::vector<Link> links;
-    int currentId = 1;
-};
-
-Editor editor = {};
-
-void NodeEditorInitialize() {
-    editor.context = ed::CreateEditor();
-    editor.nodes.emplace_back(std::make_unique<PipelineNode>(editor.currentId++));
-    editor.nodes.emplace_back(std::make_unique<ModelNode>(editor.currentId++));
+Editor::Editor() {
+    if (!context) nodeEditorInitialize();
 }
 
-void saveFile() {
-    for (const auto& node : editor.nodes) {
+void Editor::nodeEditorInitialize() {
+    context = ed::CreateEditor();
+    nodes.emplace_back(std::make_unique<PipelineNode>(currentId++));
+    nodes.emplace_back(std::make_unique<ModelNode>(currentId++));
+}
+
+void Editor::saveFile() {
+    for (const auto& node : nodes) {
         if (auto pipelineNode = dynamic_cast<PipelineNode*>(node.get())) {
             pipelineNode->generate(pipelineNode->settings.value());
         }
     }
 }
 
-static PipelineNode* selectedPipelineNode = nullptr;
-void showPipelineView() {
+void Editor::showPipelineView() {
 	// Place the Generate button on the same row, aligned to the right.
     // First, get the available width of the window's content region.
     float windowWidth = ImGui::GetWindowWidth();
@@ -63,12 +42,12 @@ void showPipelineView() {
     // ========== Left: Pipeline Editor ==========
     ImGui::BeginChild("PipelineEditor", ImVec2(0, 0), true);
 
-    if (!editor.context) NodeEditorInitialize();
+    if (!context) nodeEditorInitialize();
 
-    ed::SetCurrentEditor(editor.context);
+    ed::SetCurrentEditor(context);
     ed::Begin("Pipeline Editor");
 
-    for (const auto& node : editor.nodes) {
+    for (const auto& node : nodes) {
     	node->render();
 	    // Detect double-click on a PipelineNode
 		ed::NodeId clickedNode = ed::GetDoubleClickedNode();
@@ -83,13 +62,13 @@ void showPipelineView() {
         Link link;
         if (ed::QueryNewLink(&link.startPin, &link.endPin)) {
             if (link.startPin != link.endPin && ed::AcceptNewItem()) {
-                link.id = editor.currentId++;
+                link.id = currentId++;
 
                 Node* startNode = nullptr;
                 Node* endNode = nullptr;
                 PinType startPinType = PinType::Unknown, endPinType = PinType::Unknown;
 
-                for (const auto& node : editor.nodes) {
+                for (const auto& node : nodes) {
                     for (const auto& pin : node->outputPins) {
                         if (pin.id == link.startPin) {
                             startNode = node.get();
@@ -107,7 +86,7 @@ void showPipelineView() {
                 if (startNode && endNode) {
                     startNode->addLink(link);
                     endNode->addLink(link);
-                    editor.links.push_back(link);
+                    links.push_back(link);
 
                     if (auto modelNode = dynamic_cast<ModelNode*>(startNode)) {
                         if (auto pipelineNode = dynamic_cast<PipelineNode*>(endNode)) {
@@ -132,10 +111,10 @@ void showPipelineView() {
     if (ed::BeginDelete()) {
         ed::LinkId linkId;
         while (ed::QueryDeletedLink(&linkId)) {
-        auto it = std::remove_if(editor.links.begin(), editor.links.end(),
+        auto it = std::remove_if(links.begin(), links.end(),
             [linkId](const Link& link) { return link.id == linkId.Get(); });
-            if (it != editor.links.end()) {
-            	editor.links.erase(it);
+            if (it != links.end()) {
+            	links.erase(it);
             }
         }
     }
@@ -177,18 +156,48 @@ void showPipelineView() {
     ImGui::Columns(1);
 }
 
-void startEditor() {
-	if (ImGui::BeginTabBar("MainTabBar")) {
-    	if (ImGui::BeginTabItem("Model")) {
-    	   	showModelView();
-          	ImGui::EndTabItem();
+void Editor::showModelView() {
+ 	for (const auto& node : nodes) {
+        if (auto modelNode = dynamic_cast<ModelNode*>(node.get())) {
+            selectedModelNode = modelNode;
         }
+    }
 
-        if (ImGui::BeginTabItem("Graphics Pipeline")) {
-        	showPipelineView();
+    if(!selectedModelNode) return;
+
+    ImGui::Text("Model File:");
+    ImGui::InputText("##modelFile", selectedModelNode->modelPath, IM_ARRAYSIZE(selectedModelNode->modelPath));
+    ImGui::SameLine();
+    if (ImGui::Button("...##Model")) {
+        const char* filter[] = { "*.obj", "*.fbx", "*.gltf", "*.glb", "*.dae", "*.*" }; // Model file filters
+        const char* selectedPath = tinyfd_openFileDialog("Select Model File", "", 6, filter, "Model Files", 0);
+        if (selectedPath) {
+            strncpy(selectedModelNode->modelPath, selectedPath, IM_ARRAYSIZE(selectedModelNode->modelPath));
+        }
+    }
+
+    ImGui::Text("Texture File:");
+    ImGui::InputText("##textureFile", selectedModelNode->texturePath, IM_ARRAYSIZE(selectedModelNode->texturePath));
+    ImGui::SameLine();
+    if (ImGui::Button("...##Texture")) {
+        const char* filter[] = { "*.png", "*.jpg", "*.jpeg", "*.tga", "*.bmp", "*.dds", "*.*" }; // Texture file filters
+        const char* selectedPath = tinyfd_openFileDialog("Select Texture File", "", 7, filter, "Texture Files", 0);
+        if (selectedPath) {
+            strncpy(selectedModelNode->texturePath, selectedPath, IM_ARRAYSIZE(selectedModelNode->texturePath));
+        }
+    }
+}
+
+void Editor::startEditor() {
+    if (ImGui::BeginTabBar("MainTabBar")) {
+        if (ImGui::BeginTabItem("Model")) {
+            showModelView();
             ImGui::EndTabItem();
         }
-
+        if (ImGui::BeginTabItem("Graphics Pipeline")) {
+            showPipelineView();
+            ImGui::EndTabItem();
+        }
         ImGui::EndTabBar();
     }
 }

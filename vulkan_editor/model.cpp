@@ -1,76 +1,27 @@
 #pragma once
-#include "imgui.h"
-#include "vulkan_editor/vulkan_base.h"
-#include <fstream>
+#include "model.h"
+#include "../imgui/imgui.h"
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
-//#include "node.h"
-#include "swapchain.h"
-#include "imgui-node-editor/imgui_node_editor.h"
-#include "tinyfiledialogs.h"
+#include "../libs/tinyfiledialogs.h"
 
-namespace ed = ax::NodeEditor;
 
-char modelPath[256] = "path/to/model";
-char texturePath[256] = "path/to/texture";
 
-void showModelView() {
-    ImGui::Text("Model File:");
-    ImGui::InputText("##modelFile", modelPath, IM_ARRAYSIZE(modelPath));
-    ImGui::SameLine();
-    if (ImGui::Button("...##Model")) {
-        const char* filter[] = { "*.obj", "*.fbx", "*.gltf", "*.glb", "*.dae", "*.*" }; // Model file filters
-        const char* selectedPath = tinyfd_openFileDialog("Select Model File", "", 6, filter, "Model Files", 0);
-        if (selectedPath) {
-            strncpy(modelPath, selectedPath, IM_ARRAYSIZE(modelPath));
-        }
-    }
 
-    ImGui::Text("Texture File:");
-    ImGui::InputText("##textureFile", texturePath, IM_ARRAYSIZE(texturePath));
-    ImGui::SameLine();
-    if (ImGui::Button("...##Texture")) {
-        const char* filter[] = { "*.png", "*.jpg", "*.jpeg", "*.tga", "*.bmp", "*.dds", "*.*" }; // Texture file filters
-        const char* selectedPath = tinyfd_openFileDialog("Select Texture File", "", 7, filter, "Texture Files", 0);
-        if (selectedPath) {
-            strncpy(texturePath, selectedPath, IM_ARRAYSIZE(texturePath));
-        }
-    }
-}
-
-class VertexDataNode {
-public:
-    virtual void generateVertexBindings() = 0;
-};
-
-class ColorDataNode {
-public:
-    virtual void generateColorBindings() = 0;
-};
-
-class TextureDataNode {
-public:
-    virtual void generateTextureBindings() = 0;
-};
-
-class ModelNode : public Node, public VertexDataNode, public ColorDataNode, public TextureDataNode {
-public:
-	std::ofstream outFile;
-	size_t attributesCount = 0;
-    ModelNode(int id) : Node(id) {
+    ModelNode::ModelNode(int id) : Node(id) {
     	outputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexOutput });
      	outputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorOutput });
         outputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureOutput });
         attributesCount = outputPins.size();
     }
 
-    ~ModelNode() override { }
+    ModelNode::~ModelNode() { }
 
-    void generateVertexBindings() override {
+    void ModelNode::generateVertexBindings() {
     	outFile.open("Vertex.h", std::ios::app);
         if (outFile.is_open()) {
             outFile << "        attributeDescriptions[0].binding = 0;\n"
@@ -83,7 +34,7 @@ public:
         }
     }
 
-    void generateColorBindings() override {
+    void ModelNode::generateColorBindings() {
     	outFile.open("Vertex.h", std::ios::app);
         if (outFile.is_open()) {
             outFile << "        attributeDescriptions[1].binding = 0;\n"
@@ -96,7 +47,7 @@ public:
         }
     }
 
-    void generateTextureBindings() override {
+    void ModelNode::generateTextureBindings() {
     	outFile.open("Vertex.h", std::ios::app);
         if (outFile.is_open()) {
             outFile << "        attributeDescriptions[2].binding = 0;\n"
@@ -109,7 +60,7 @@ public:
         }
     }
 
-    void generateVertexStructFilePart1() {
+    void ModelNode::generateVertexStructFilePart1() {
     	outFile.open("Vertex.h", std::ios::app);
         if (!outFile.is_open()) {
             std::cerr << "Error opening file for writing.\n";
@@ -135,7 +86,7 @@ public:
                 outFile.close();
     }
 
-    void generateVertexStructFilePart2() {
+    void ModelNode::generateVertexStructFilePart2() {
     	outFile.open("Vertex.h", std::ios::app);
 	    if (!outFile.is_open()) {
 	        std::cerr << "Error opening file for writing.\n";
@@ -177,7 +128,7 @@ namespace std {
         std::cout << "Vertex struct successfully written to Vertex.h\n";
     }
 
-    void generateModel() {
+    void ModelNode::generateModel() {
         outFile.open("Vertex.h", std::ios::app);
         if (!outFile.is_open()) {
             std::cerr << "Error opening file for writing.\n";
@@ -655,7 +606,7 @@ class VulkanTutorial {
     }
 
 
-    void render() const override {
+    void ModelNode::render() const {
 	    ed::BeginNode(this->id);
 	    ImGui::Text("Model");
 
@@ -679,4 +630,3 @@ class VulkanTutorial {
     	}
 
     }
-};

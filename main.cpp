@@ -18,7 +18,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
-#include "vulkan_editor/vulkan_base.h"
+#include "vulkan_base/vulkan_base.h"
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -27,8 +27,7 @@
 #include <cstdint>
 #include <array>
 
-#include "libs/tinyfiledialogs.h"
-#include "vulkan_view.h"
+#include "vulkan_editor/vulkan_view.h"
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -87,6 +86,8 @@ private:
     std::vector<VkFence> fences{ MAX_FRAMES_IN_FLIGHT };
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
+
+    Editor editor{};
 
     void initWindow() {
     	if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -329,7 +330,7 @@ private:
             ImGuiWindowFlags_NoTitleBar |
             ImGuiWindowFlags_NoResize);
 
-        startEditor();
+        editor.startEditor();
 
         ImGui::End();
     }

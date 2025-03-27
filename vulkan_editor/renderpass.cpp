@@ -1,15 +1,11 @@
-#pragma once
-#include "device.h"
-#include <fstream>
+#include "renderpass.h"
 
-class RenderPassNode : public Node {
-public:
-	RenderPassNode(int id) : Node(id) {}
-	~RenderPassNode() override { }
+	RenderPassNode::RenderPassNode(int id) : Node(id) {}
+	RenderPassNode::~RenderPassNode() { }
 
-	void render() const override {}
-	std::ofstream outFile;
-	void generateRenderpass() {
+	void RenderPassNode::render() const {}
+
+	void RenderPassNode::generateRenderpass() {
         outFile.open("Vertex.h", std::ios::app);
         if (!outFile.is_open()) {
             std::cerr << "Error opening file for writing.\n";
@@ -153,4 +149,3 @@ public:
         DeviceNode device{id};
 		device.generateDevice();
     }
-};
