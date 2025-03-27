@@ -45,6 +45,7 @@ editor_files = files(
 	'vulkan_editor/logicalDevice.cpp',
 	'vulkan_editor/instance.cpp',
 	'vulkan_editor/renderpass.cpp',
+	'vulkan_editor/utils.cpp',
 )
 
 # Source Files

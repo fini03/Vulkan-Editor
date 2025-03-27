@@ -1,0 +1,2 @@
+void generateBufferCreationCode();
+void generateImageCreationCode();

@@ -294,6 +294,70 @@ class VulkanTutorial {
         vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
     }
 
+    void loadModel( Geometry& geometry, const std::string& MODEL_PATH) {
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn, err;
+
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+            throw std::runtime_error(warn + err);
+        }
+
+        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+        for (const auto& shape : shapes) {
+            for (const auto& index : shape.mesh.indices) {
+                Vertex vertex{};
+
+                vertex.pos = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+                };
+
+                vertex.texCoord = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                };
+
+                vertex.color = {1.0f, 1.0f, 1.0f};
+
+                if (uniqueVertices.count(vertex) == 0) {
+                    uniqueVertices[vertex] = static_cast<uint32_t>(geometry.m_vertices.size());
+                    geometry.m_vertices.push_back(vertex);
+                }
+
+                geometry.m_indices.push_back(uniqueVertices[vertex]);
+            }
+        }
+    }
+
+    void createObject(
+        VkPhysicalDevice physicalDevice,
+        VkDevice device,
+        VmaAllocator vmaAllocator,
+        VkQueue graphicsQueue,
+        VkCommandPool commandPool,
+        VkDescriptorPool descriptorPool,
+        VkDescriptorSetLayout descriptorSetLayout,
+        glm::mat4&& model,
+        std::string modelPath,
+        std::string texturePath,
+        std::vector<Object>& objects
+    ) {
+        Object object{{model}};
+        createTextureImage(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, texturePath, object.m_texture);
+        createTextureImageView(device, object.m_texture);
+        createTextureSampler(physicalDevice, device, object.m_texture);
+        loadModel(object.m_geometry, modelPath);
+        createVertexBuffer(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, object.m_geometry);
+        createIndexBuffer(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, object.m_geometry);
+        createUniformBuffers(physicalDevice, device, vmaAllocator, object.m_uniformBuffers);
+        createDescriptorSets(device, object.m_texture, descriptorSetLayout, object.m_uniformBuffers, descriptorPool, object.m_descriptorSets);
+        objects.push_back(object);
+    }
+    
     void createBuffer(
         VkPhysicalDevice physicalDevice,
         VkDevice device,
@@ -330,6 +394,87 @@ class VulkanTutorial {
 
     void destroyBuffer(VkDevice device, VmaAllocator vmaAllocator, VkBuffer buffer, VmaAllocation& allocation) {
         vmaDestroyBuffer(vmaAllocator, buffer, allocation);
+    }
+
+    void updateUniformBuffer(uint32_t currentImage, SwapChain& swapChain, std::vector<Object>& objects ) {
+        static auto startTime = std::chrono::high_resolution_clock::now();
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float dt = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+	    startTime = currentTime;
+
+	    for( auto& object : objects ) {
+            object.m_ubo.model = glm::rotate(object.m_ubo.model, dt * 1.0f * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	        object.m_ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	  	    object.m_ubo.proj = glm::perspective(glm::radians(45.0f), swapChain.m_swapChainExtent.width / (float) swapChain.m_swapChainExtent.height, 0.1f, 10.0f);
+	        object.m_ubo.proj[1][1] *= -1;
+
+	        memcpy(object.m_uniformBuffers.m_uniformBuffersMapped[currentImage], &object.m_ubo, sizeof(object.m_ubo));
+	    }
+    }
+
+    void createVertexBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator vmaAllocator, VkQueue graphicsQueue, VkCommandPool commandPool, Geometry& geometry) {
+        VkDeviceSize bufferSize = sizeof(geometry.m_vertices[0]) * geometry.m_vertices.size();
+
+        VkBuffer stagingBuffer;
+        VmaAllocation stagingBufferAllocation;
+        VmaAllocationInfo allocInfo;
+        createBuffer(physicalDevice, device, vmaAllocator, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+            , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            , VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT
+            , stagingBuffer, stagingBufferAllocation, &allocInfo);
+
+        MemCopy(device, geometry.m_vertices.data(), allocInfo, bufferSize);
+
+        createBuffer(physicalDevice, device, vmaAllocator, bufferSize
+            , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+            , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, geometry.m_vertexBuffer
+            , geometry.m_vertexBufferAllocation);
+
+        copyBuffer(device, graphicsQueue, commandPool, stagingBuffer, geometry.m_vertexBuffer, bufferSize);
+
+        destroyBuffer(device, vmaAllocator, stagingBuffer, stagingBufferAllocation);
+    }
+
+    void createIndexBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator vmaAllocator, VkQueue graphicsQueue, VkCommandPool commandPool, Geometry& geometry) {
+        VkDeviceSize bufferSize = sizeof(geometry.m_indices[0]) * geometry.m_indices.size();
+
+        VkBuffer stagingBuffer;
+        VmaAllocation stagingBufferAllocation;
+        VmaAllocationInfo allocInfo;
+        createBuffer(physicalDevice, device, vmaAllocator, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+            , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            , VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT
+            , stagingBuffer, stagingBufferAllocation, &allocInfo);
+
+        MemCopy(device, geometry.m_indices.data(), allocInfo, bufferSize);
+
+        createBuffer(physicalDevice, device, vmaAllocator, bufferSize
+            , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+            , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0
+            , geometry.m_indexBuffer, geometry.m_indexBufferAllocation);
+
+        copyBuffer(device, graphicsQueue, commandPool, stagingBuffer, geometry.m_indexBuffer, bufferSize);
+
+        destroyBuffer(device, vmaAllocator, stagingBuffer, stagingBufferAllocation);
+    }
+
+    void createUniformBuffers(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator& vmaAllocator, UniformBuffers &uniformBuffers) {
+        VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+        uniformBuffers.m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+        uniformBuffers.m_uniformBuffersAllocation.resize(MAX_FRAMES_IN_FLIGHT);
+        uniformBuffers.m_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VmaAllocationInfo allocInfo;
+            createBuffer(physicalDevice, device, vmaAllocator, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+                , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+                , VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT
+                , uniformBuffers.m_uniformBuffers[i]
+                , uniformBuffers.m_uniformBuffersAllocation[i], &allocInfo);
+
+            uniformBuffers.m_uniformBuffersMapped[i] = allocInfo.pMappedData;
+        }
     }
 
     void transitionImageLayout(VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
@@ -521,127 +666,6 @@ class VulkanTutorial {
         }
     }
 
-
-    void updateUniformBuffer(uint32_t currentImage, SwapChain& swapChain, std::vector<Object>& objects ) {
-        static auto startTime = std::chrono::high_resolution_clock::now();
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        float dt = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-	    startTime = currentTime;
-
-	    for( auto& object : objects ) {
-            object.m_ubo.model = glm::rotate(object.m_ubo.model, dt * 1.0f * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	        object.m_ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	  	    object.m_ubo.proj = glm::perspective(glm::radians(45.0f), swapChain.m_swapChainExtent.width / (float) swapChain.m_swapChainExtent.height, 0.1f, 10.0f);
-	        object.m_ubo.proj[1][1] *= -1;
-
-	        memcpy(object.m_uniformBuffers.m_uniformBuffersMapped[currentImage], &object.m_ubo, sizeof(object.m_ubo));
-	    }
-    }
-
-    void loadModel( Geometry& geometry, const std::string& MODEL_PATH) {
-        tinyobj::attrib_t attrib;
-        std::vector<tinyobj::shape_t> shapes;
-        std::vector<tinyobj::material_t> materials;
-        std::string warn, err;
-
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
-            throw std::runtime_error(warn + err);
-        }
-
-        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-        for (const auto& shape : shapes) {
-            for (const auto& index : shape.mesh.indices) {
-                Vertex vertex{};
-
-                vertex.pos = {
-                    attrib.vertices[3 * index.vertex_index + 0],
-                    attrib.vertices[3 * index.vertex_index + 1],
-                    attrib.vertices[3 * index.vertex_index + 2]
-                };
-
-                vertex.texCoord = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-                };
-
-                vertex.color = {1.0f, 1.0f, 1.0f};
-
-                if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] = static_cast<uint32_t>(geometry.m_vertices.size());
-                    geometry.m_vertices.push_back(vertex);
-                }
-
-                geometry.m_indices.push_back(uniqueVertices[vertex]);
-            }
-        }
-    }
-
-    void createVertexBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator vmaAllocator, VkQueue graphicsQueue, VkCommandPool commandPool, Geometry& geometry) {
-        VkDeviceSize bufferSize = sizeof(geometry.m_vertices[0]) * geometry.m_vertices.size();
-
-        VkBuffer stagingBuffer;
-        VmaAllocation stagingBufferAllocation;
-        VmaAllocationInfo allocInfo;
-        createBuffer(physicalDevice, device, vmaAllocator, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-            , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-            , VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT
-            , stagingBuffer, stagingBufferAllocation, &allocInfo);
-
-        MemCopy(device, geometry.m_vertices.data(), allocInfo, bufferSize);
-
-        createBuffer(physicalDevice, device, vmaAllocator, bufferSize
-            , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-            , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, geometry.m_vertexBuffer
-            , geometry.m_vertexBufferAllocation);
-
-        copyBuffer(device, graphicsQueue, commandPool, stagingBuffer, geometry.m_vertexBuffer, bufferSize);
-
-        destroyBuffer(device, vmaAllocator, stagingBuffer, stagingBufferAllocation);
-    }
-
-    void createIndexBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator vmaAllocator, VkQueue graphicsQueue, VkCommandPool commandPool, Geometry& geometry) {
-        VkDeviceSize bufferSize = sizeof(geometry.m_indices[0]) * geometry.m_indices.size();
-
-        VkBuffer stagingBuffer;
-        VmaAllocation stagingBufferAllocation;
-        VmaAllocationInfo allocInfo;
-        createBuffer(physicalDevice, device, vmaAllocator, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-            , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-            , VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT
-            , stagingBuffer, stagingBufferAllocation, &allocInfo);
-
-        MemCopy(device, geometry.m_indices.data(), allocInfo, bufferSize);
-
-        createBuffer(physicalDevice, device, vmaAllocator, bufferSize
-            , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-            , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0
-            , geometry.m_indexBuffer, geometry.m_indexBufferAllocation);
-
-        copyBuffer(device, graphicsQueue, commandPool, stagingBuffer, geometry.m_indexBuffer, bufferSize);
-
-        destroyBuffer(device, vmaAllocator, stagingBuffer, stagingBufferAllocation);
-    }
-
-    void createUniformBuffers(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator& vmaAllocator, UniformBuffers &uniformBuffers) {
-        VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-        uniformBuffers.m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-        uniformBuffers.m_uniformBuffersAllocation.resize(MAX_FRAMES_IN_FLIGHT);
-        uniformBuffers.m_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            VmaAllocationInfo allocInfo;
-            createBuffer(physicalDevice, device, vmaAllocator, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-                , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                , VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT
-                , uniformBuffers.m_uniformBuffers[i]
-                , uniformBuffers.m_uniformBuffersAllocation[i], &allocInfo);
-
-            uniformBuffers.m_uniformBuffersMapped[i] = allocInfo.pMappedData;
-        }
-    }
-
     void createDescriptorSets(VkDevice device, Texture& texture, VkDescriptorSetLayout descriptorSetLayout, UniformBuffers& uniformBuffers, VkDescriptorPool descriptorPool, std::vector<VkDescriptorSet>& descriptorSets) {
         std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
         VkDescriptorSetAllocateInfo allocInfo{};
@@ -688,32 +712,6 @@ class VulkanTutorial {
         }
     }
 
-
-    void createObject(
-        VkPhysicalDevice physicalDevice,
-        VkDevice device,
-        VmaAllocator vmaAllocator,
-        VkQueue graphicsQueue,
-        VkCommandPool commandPool,
-        VkDescriptorPool descriptorPool,
-        VkDescriptorSetLayout descriptorSetLayout,
-        glm::mat4&& model,
-        std::string modelPath,
-        std::string texturePath,
-        std::vector<Object>& objects
-    ) {
-        Object object{{model}};
-        createTextureImage(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, texturePath, object.m_texture);
-        createTextureImageView(device, object.m_texture);
-        createTextureSampler(physicalDevice, device, object.m_texture);
-        loadModel(object.m_geometry, modelPath);
-        createVertexBuffer(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, object.m_geometry);
-        createIndexBuffer(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, object.m_geometry);
-        createUniformBuffers(physicalDevice, device, vmaAllocator, object.m_uniformBuffers);
-        createDescriptorSets(device, object.m_texture, descriptorSetLayout, object.m_uniformBuffers, descriptorPool, object.m_descriptorSets);
-        objects.push_back(object);
-    }
-    
 	void createRenderPass(VkPhysicalDevice physicalDevice, VkDevice device, SwapChain& swapChain, VkRenderPass& renderPass) {
 	    VkAttachmentDescription colorAttachment{};
 	    colorAttachment.format = swapChain.m_swapChainImageFormat;
@@ -1841,9 +1839,9 @@ class VulkanTutorial {
         rasterizer.depthClampEnable = VK_FALSE;
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-        rasterizer.lineWidth = 1;
+        rasterizer.lineWidth = 0;
         rasterizer.cullMode = VK_CULL_MODE_NONE;
-        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
 
         VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -1870,9 +1868,9 @@ class VulkanTutorial {
         colorBlending.attachmentCount = 1;
 	    colorBlending.pAttachments = &colorBlendAttachment;
         colorBlending.blendConstants[0] = 0;
-        colorBlending.blendConstants[1] = 0;
-        colorBlending.blendConstants[2] = 0;
-        colorBlending.blendConstants[3] = 0;
+        colorBlending.blendConstants[1] = 1;
+        colorBlending.blendConstants[2] = 2;
+        colorBlending.blendConstants[3] = 3;
 
         std::vector<VkDynamicState> dynamicStates = {
             VK_DYNAMIC_STATE_VIEWPORT,
