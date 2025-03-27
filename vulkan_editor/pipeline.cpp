@@ -5,6 +5,8 @@
 #include <iostream>
 #include <vulkan/vulkan.h>
 
+namespace ed = ax::NodeEditor;
+
 std::vector<const char*> topologyOptions = { "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST", "VK_PRIMITIVE_TOPOLOGY_LINE_LIST" };
 std::vector<const char*> polygonModes = { "VK_POLYGON_MODE_FILL", "VK_POLYGON_MODE_LINE" };
 std::vector<const char*> cullModes = { "VK_CULL_MODE_NONE", "VK_CULL_MODE_BACK_BIT" };

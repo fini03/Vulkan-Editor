@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../imgui-node-editor/imgui_node_editor.h"
+#include "../libs/tinyfiledialogs.h"
 #include "pipeline.h"
 #include <SDL3/SDL_video.h>
 #include <memory>
