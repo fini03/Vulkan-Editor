@@ -41,7 +41,9 @@ editor_files = files(
 	'vulkan_editor/pipeline.cpp',
 	'vulkan_editor/model.cpp',
 	'vulkan_editor/application.cpp',
-	'vulkan_editor/device.cpp',
+	'vulkan_editor/physicalDevice.cpp',
+	'vulkan_editor/logicalDevice.cpp',
+	'vulkan_editor/instance.cpp',
 	'vulkan_editor/renderpass.cpp',
 )
 

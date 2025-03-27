@@ -2,12 +2,12 @@
 #include "application.h"
 #include <fstream>
 
-class DeviceNode : public Node {
+class InstanceNode : public Node {
 public:
-	DeviceNode(int id);
-	~DeviceNode() override;
+	InstanceNode(int id);
+	~InstanceNode() override;
 
 	void render() const override;
 	std::ofstream outFile;
-	void generateDevice();
+	void generateInstance();
 };

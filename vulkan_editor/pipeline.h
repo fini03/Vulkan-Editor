@@ -28,9 +28,9 @@ struct PipelineSettings {
     int attachmentCount = 1;
     float blendConstants[4] = { 0.0f, 1.0f, 2.0f, 3.0f };
 
-    char vertexShaderPath[256] = "path/to/shader.spv";
+    char vertexShaderPath[256] = "shaders/vert.spv";
     char vertexEntryName[64] = "main";
-    char fragmentShaderPath[256] = "path/to/shader.spv";
+    char fragmentShaderPath[256] = "shaders/frag.spv";
     char fragmentEntryName[64] = "main";
 };
 

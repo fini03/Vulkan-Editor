@@ -1,6 +1,7 @@
 #pragma once
 #include "model.h"
 #include "../imgui/imgui.h"
+#include "vulkan_editor/renderpass.h"
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_ENABLE_EXPERIMENTAL
@@ -598,8 +599,8 @@ class VulkanTutorial {
 
     outFile.close();
 
-    SwapchainNode swapchain{id};
-    swapchain.generateSwapchain();
+    RenderPassNode renderpass{id};
+    renderpass.generateRenderpass();
 }
 
 void ModelNode::render() const {

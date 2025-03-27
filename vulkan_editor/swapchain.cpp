@@ -1,4 +1,5 @@
 #include "swapchain.h"
+#include "vulkan_editor/logicalDevice.h"
 
 SwapchainNode::SwapchainNode(int id) : Node(id) {}
 SwapchainNode::~SwapchainNode() { }
@@ -271,6 +272,6 @@ void SwapchainNode::generateSwapchain() {
 
     outFile.close();
 
-    RenderPassNode renderPass{id};
-	renderPass.generateRenderpass();
+    LogicalDeviceNode logicalDevice{id};
+	logicalDevice.generateLogicalDevice();
 }

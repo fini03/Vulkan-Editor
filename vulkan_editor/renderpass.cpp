@@ -1,4 +1,5 @@
 #include "renderpass.h"
+#include "swapchain.h"
 
 RenderPassNode::RenderPassNode(int id) : Node(id) {}
 RenderPassNode::~RenderPassNode() { }
@@ -146,6 +147,6 @@ void RenderPassNode::generateRenderpass() {
 
     outFile.close();
 
-    DeviceNode device{id};
-	device.generateDevice();
+    SwapchainNode swapchain{id};
+	swapchain.generateSwapchain();
 }

@@ -33,8 +33,8 @@ class ModelNode : public Node, public VertexDataNode, public ColorDataNode, publ
 public:
 	std::ofstream outFile;
 	size_t attributesCount = 0;
-	char modelPath[256] = "path/to/model";
-	char texturePath[256] = "path/to/texture";
+	char modelPath[256] = "data/models/viking_room.obj";
+	char texturePath[256] = "data/images/viking_room.png";
 
     ModelNode(int id);
 

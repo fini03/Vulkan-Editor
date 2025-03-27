@@ -1,5 +1,5 @@
 #pragma once
-#include "renderpass.h"
+#include "logicalDevice.h"
 #include <fstream>
 
 class SwapchainNode : public Node {
