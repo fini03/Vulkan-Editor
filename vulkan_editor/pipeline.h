@@ -62,20 +62,6 @@ public:
         this->textureData = textureData;
     }
 
-    void showInputAssemblySettings(PipelineSettings& settings);
-
-    void showRasterizerSettings(PipelineSettings& settings);
-
-    void showDepthStencilSettings(PipelineSettings& settings);
-
-    void showMultisamplingSettings(PipelineSettings& settings);
-
-    void showColorBlendingSettings(PipelineSettings& settings);
-
-    void showShaderFileSelector(PipelineSettings& settings);
-
-    void showShaderSettings(PipelineSettings& settings);
-
 private:
 	ModelNode *model = nullptr;
     VertexDataNode *vertexData = nullptr;

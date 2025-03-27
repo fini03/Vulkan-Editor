@@ -9,99 +9,96 @@
 #include <glm/gtx/hash.hpp>
 #include "../libs/tinyfiledialogs.h"
 
+ModelNode::ModelNode(int id) : Node(id) {
+ 	outputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexOutput });
+  	outputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorOutput });
+    outputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureOutput });
+    attributesCount = outputPins.size();
+}
 
+ModelNode::~ModelNode() { }
 
+void ModelNode::generateVertexBindings() {
+ 	outFile.open("Vertex.h", std::ios::app);
+	if (outFile.is_open()) {
+        outFile << "        attributeDescriptions[0].binding = 0;\n"
+    	        << "        attributeDescriptions[0].location = 0;\n"
+                << "        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
+                << "        attributeDescriptions[0].offset = offsetof(Vertex, pos);\n\n";
+        outFile.close();
+    } else {
+       std::cerr << "Error opening file for writing.\n";
+    }
+}
 
-    ModelNode::ModelNode(int id) : Node(id) {
-    	outputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexOutput });
-     	outputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorOutput });
-        outputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureOutput });
-        attributesCount = outputPins.size();
+void ModelNode::generateColorBindings() {
+	outFile.open("Vertex.h", std::ios::app);
+    if (outFile.is_open()) {
+        outFile << "        attributeDescriptions[1].binding = 0;\n"
+                << "        attributeDescriptions[1].location = 1;\n"
+                << "        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
+                << "        attributeDescriptions[1].offset = offsetof(Vertex, color);\n\n";
+        outFile.close();
+    } else {
+    	std::cerr << "Error opening file for writing.\n";
+    }
+}
+
+void ModelNode::generateTextureBindings() {
+  	outFile.open("Vertex.h", std::ios::app);
+    if (outFile.is_open()) {
+        outFile << "        attributeDescriptions[2].binding = 0;\n"
+                << "        attributeDescriptions[2].location = 2;\n"
+                << "        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;\n"
+                << "        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);\n\n";
+        outFile.close();
+    } else {
+        std::cerr << "Error opening file for writing.\n";
+    }
+}
+
+void ModelNode::generateVertexStructFilePart1() {
+  	outFile.open("Vertex.h", std::ios::app);
+    if (!outFile.is_open()) {
+        std::cerr << "Error opening file for writing.\n";
+        return;
     }
 
-    ModelNode::~ModelNode() { }
+    outFile << "struct Vertex {\n"
+            << "    glm::vec3 pos;\n"
+            << "    glm::vec3 color;\n"
+            << "    glm::vec2 texCoord;\n\n"
 
-    void ModelNode::generateVertexBindings() {
-    	outFile.open("Vertex.h", std::ios::app);
-        if (outFile.is_open()) {
-            outFile << "        attributeDescriptions[0].binding = 0;\n"
-                    << "        attributeDescriptions[0].location = 0;\n"
-                    << "        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
-                    << "        attributeDescriptions[0].offset = offsetof(Vertex, pos);\n\n";
-            outFile.close();
-        } else {
-            std::cerr << "Error opening file for writing.\n";
-        }
-    }
+            << "    static VkVertexInputBindingDescription getBindingDescription() {\n"
+            << "        VkVertexInputBindingDescription bindingDescription{};\n"
+            << "        bindingDescription.binding = 0;\n"
+            << "        bindingDescription.stride = sizeof(Vertex);\n"
+            << "        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;\n\n"
+            << "        return bindingDescription;\n"
+            << "    }\n\n"
 
-    void ModelNode::generateColorBindings() {
-    	outFile.open("Vertex.h", std::ios::app);
-        if (outFile.is_open()) {
-            outFile << "        attributeDescriptions[1].binding = 0;\n"
-                    << "        attributeDescriptions[1].location = 1;\n"
-                    << "        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
-                    << "        attributeDescriptions[1].offset = offsetof(Vertex, color);\n\n";
-            outFile.close();
-        } else {
-            std::cerr << "Error opening file for writing.\n";
-        }
-    }
+            << "    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {\n"
+            << "        std::vector<VkVertexInputAttributeDescription>attributeDescriptions(" << attributesCount << ");\n\n";
 
-    void ModelNode::generateTextureBindings() {
-    	outFile.open("Vertex.h", std::ios::app);
-        if (outFile.is_open()) {
-            outFile << "        attributeDescriptions[2].binding = 0;\n"
-                    << "        attributeDescriptions[2].location = 2;\n"
-                    << "        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;\n"
-                    << "        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);\n\n";
-            outFile.close();
-        } else {
-            std::cerr << "Error opening file for writing.\n";
-        }
-    }
+    outFile.close();
+}
 
-    void ModelNode::generateVertexStructFilePart1() {
-    	outFile.open("Vertex.h", std::ios::app);
-        if (!outFile.is_open()) {
-            std::cerr << "Error opening file for writing.\n";
-            return;
-        }
+void ModelNode::generateVertexStructFilePart2() {
+  	outFile.open("Vertex.h", std::ios::app);
+   	if (!outFile.is_open()) {
+    	std::cerr << "Error opening file for writing.\n";
+	    return;
+	}
 
-        outFile << "struct Vertex {\n"
-                << "    glm::vec3 pos;\n"
-                << "    glm::vec3 color;\n"
-                << "    glm::vec2 texCoord;\n\n"
+    outFile << "        return attributeDescriptions;\n"
+            << "    }\n\n"
 
-                << "    static VkVertexInputBindingDescription getBindingDescription() {\n"
-                << "        VkVertexInputBindingDescription bindingDescription{};\n"
-                << "        bindingDescription.binding = 0;\n"
-                << "        bindingDescription.stride = sizeof(Vertex);\n"
-                << "        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;\n\n"
-                << "        return bindingDescription;\n"
-                << "    }\n\n"
+            << "    bool operator==(const Vertex& other) const {\n"
+            << "        return pos == other.pos && color == other.color && texCoord == other.texCoord;\n"
+            << "    }\n"
+            << "};\n\n";
 
-                << "    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {\n"
-                << "        std::vector<VkVertexInputAttributeDescription>attributeDescriptions(" << attributesCount << ");\n\n";
-
-                outFile.close();
-    }
-
-    void ModelNode::generateVertexStructFilePart2() {
-    	outFile.open("Vertex.h", std::ios::app);
-	    if (!outFile.is_open()) {
-	        std::cerr << "Error opening file for writing.\n";
-	        return;
-	    }
-
-        outFile << "        return attributeDescriptions;\n"
-                << "    }\n\n"
-
-                << "    bool operator==(const Vertex& other) const {\n"
-                << "        return pos == other.pos && color == other.color && texCoord == other.texCoord;\n"
-                << "    }\n"
-                << "};\n\n";
-
-        outFile << R"(
+    outFile << R"(
 namespace std {
     template<> struct hash<glm::vec2> {
         size_t operator()(glm::vec2 const& vec) const {
@@ -124,21 +121,21 @@ namespace std {
 }
 )";
 
-        outFile.close();
-        std::cout << "Vertex struct successfully written to Vertex.h\n";
+    outFile.close();
+    std::cout << "Vertex struct successfully written to Vertex.h\n";
+}
+
+void ModelNode::generateModel() {
+    outFile.open("Vertex.h", std::ios::app);
+    if (!outFile.is_open()) {
+        std::cerr << "Error opening file for writing.\n";
+        return;
     }
 
-    void ModelNode::generateModel() {
-        outFile.open("Vertex.h", std::ios::app);
-        if (!outFile.is_open()) {
-            std::cerr << "Error opening file for writing.\n";
-            return;
-        }
+    outFile << "const std::string m_MODEL_PATH = \"" << modelPath << "\";\n";
+    outFile << "const std::string m_TEXTURE_PATH = \"" << texturePath << "\";\n";
 
-        outFile << "const std::string m_MODEL_PATH = \"" << modelPath << "\";\n";
-        outFile << "const std::string m_TEXTURE_PATH = \"" << texturePath << "\";\n";
-
-        outFile << R"(
+    outFile << R"(
 class VulkanTutorial {
 	public:
     void MemCopy(VkDevice device, void* source, VmaAllocationInfo& allocInfo, VkDeviceSize size) {
@@ -599,34 +596,32 @@ class VulkanTutorial {
     }
     )";
 
-        outFile.close();
+    outFile.close();
 
-        SwapchainNode swapchain{id};
-        swapchain.generateSwapchain();
+    SwapchainNode swapchain{id};
+    swapchain.generateSwapchain();
+}
+
+void ModelNode::render() const {
+	ed::BeginNode(this->id);
+	ImGui::Text("Model");
+
+	// Draw Pins
+	ed::BeginPin(this->id * 10 + 1, ed::PinKind::Output);
+    ImGui::Text("*vertex_data");
+    ed::EndPin();
+
+    ed::BeginPin(this->id * 10 + 2, ed::PinKind::Output);
+    ImGui::Text("*color_data");
+    ed::EndPin();
+
+    ed::BeginPin(this->id * 10 + 3, ed::PinKind::Output);
+    ImGui::Text("*texture_data");
+    ed::EndPin();
+
+	ed::EndNode();
+
+	for (auto& link : links) {
+      	ed::Link(link.id, link.startPin, link.endPin);
     }
-
-
-    void ModelNode::render() const {
-	    ed::BeginNode(this->id);
-	    ImGui::Text("Model");
-
-	    // Draw Pins
-		ed::BeginPin(this->id * 10 + 1, ed::PinKind::Output);
-        ImGui::Text("*vertex_data");
-        ed::EndPin();
-
-        ed::BeginPin(this->id * 10 + 2, ed::PinKind::Output);
-        ImGui::Text("*color_data");
-        ed::EndPin();
-
-        ed::BeginPin(this->id * 10 + 3, ed::PinKind::Output);
-        ImGui::Text("*texture_data");
-        ed::EndPin();
-
-	    ed::EndNode();
-
-		for (auto& link : links) {
-        	ed::Link(link.id, link.startPin, link.endPin);
-    	}
-
-    }
+}

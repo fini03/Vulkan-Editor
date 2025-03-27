@@ -1,8 +1,10 @@
 #include "vulkan_view.h"
 #include "model.h"
+#include <vulkan/vulkan.h>
 
 PipelineNode* selectedPipelineNode = nullptr;
 ModelNode* selectedModelNode = nullptr;
+std::vector<uint32_t> colorWriteMaskOptions = { VK_COLOR_COMPONENT_R_BIT, VK_COLOR_COMPONENT_G_BIT, VK_COLOR_COMPONENT_B_BIT, VK_COLOR_COMPONENT_A_BIT };
 
 Editor::Editor() {
     if (!context) nodeEditorInitialize();
@@ -21,6 +23,117 @@ void Editor::saveFile() {
         }
     }
 }
+
+void Editor::showInputAssemblySettings(PipelineSettings& settings) {
+    ImGui::Text("Input Assembly");
+
+    ImGui::Combo("Vertex Topology", &settings.inputAssembly, topologyOptions.data(), topologyOptions.size());
+
+    ImGui::Checkbox("Primitive Restart", &settings.primitiveRestart);
+}
+
+void Editor::showRasterizerSettings(PipelineSettings& settings) {
+    ImGui::Separator();
+    ImGui::Text("Rasterizer");
+
+    ImGui::Checkbox("Depth Clamp", &settings.depthClamp);
+    ImGui::Checkbox("Rasterizer Discard", &settings.rasterizerDiscard);
+
+    ImGui::Combo("Polygon Mode", &settings.polygonMode, polygonModes.data(), polygonModes.size());
+
+    ImGui::InputFloat("Line Width", &settings.lineWidth);
+
+    ImGui::Combo("Cull Mode", &settings.cullMode, cullModes.data(), cullModes.size());
+
+    ImGui::Combo("Front Face", &settings.frontFace, frontFaceOptions.data(), frontFaceOptions.size());
+
+    ImGui::Checkbox("Depth Bias Enabled", &settings.depthBiasEnabled);
+}
+
+void Editor::showDepthStencilSettings(PipelineSettings& settings) {
+    ImGui::Separator();
+    ImGui::Text("Depth & Stencil");
+
+    ImGui::Checkbox("Depth Test", &settings.depthTest);
+    ImGui::Checkbox("Depth Write", &settings.depthWrite);
+
+    ImGui::Combo("Depth Compare Operation", &settings.depthCompareOp, depthCompareOptions.data(), depthCompareOptions.size());
+
+    ImGui::Checkbox("Depth Bounds Test", &settings.depthBoundsTest);
+
+    ImGui::Checkbox("Stencil Test", &settings.stencilTest);
+}
+
+void Editor::showMultisamplingSettings(PipelineSettings& settings) {
+    ImGui::Separator();
+    ImGui::Text("Multisampling");
+
+    ImGui::Checkbox("Sample Shading", &settings.sampleShading);
+
+    ImGui::Combo("Rasterization Samples", &settings.rasterizationSamples, sampleCountOptions.data(), sampleCountOptions.size());
+}
+
+void Editor::showColorBlendingSettings(PipelineSettings& settings) {
+    ImGui::Separator();
+    ImGui::Text("Color Blending");
+
+    ImGui::Text("Color Write Mask (Multiple selection)");
+
+    for (int i = 0; i < 4; i++) {
+        bool selected = (settings.colorWriteMask & colorWriteMaskOptions[i]) != 0;
+        if (ImGui::Checkbox(colorWriteMaskNames[i], &selected)) {
+        	if (selected) {
+            	settings.colorWriteMask |= colorWriteMaskOptions[i];  // Enable flag
+         	} else {
+            	settings.colorWriteMask &= ~colorWriteMaskOptions[i]; // Disable flag
+            }
+        }
+        if (i < 3) ImGui::SameLine();
+    }
+
+    ImGui::Checkbox("Color Blend", &settings.colorBlend);
+
+    ImGui::Checkbox("Logic Operation Enabled", &settings.logicOpEnable);
+
+    ImGui::Combo("Logic Operation", &settings.logicOp, logicOps.data(), logicOps.size());
+
+    ImGui::InputInt("Attachment Count", &settings.attachmentCount);
+
+    ImGui::InputFloat4("Color Blend Constants", settings.blendConstants);
+}
+
+void Editor::showShaderFileSelector(PipelineSettings& settings) {
+    const char* filter[] = { "*.vert", "*.spv", "*.glsl", "*.txt", "*.*" }; // Shader file filters
+
+    ImGui::InputText("Vertex Shader File", settings.vertexShaderPath, IM_ARRAYSIZE(settings.vertexShaderPath));
+    ImGui::SameLine();
+    if (ImGui::Button("...##Vertex")) {
+        const char* selectedPath = tinyfd_openFileDialog("Select Vertex Shader", "", 5, filter, "Shader Files", 0);
+        if (selectedPath) {
+            strncpy(settings.vertexShaderPath, selectedPath, IM_ARRAYSIZE(settings.vertexShaderPath));
+        }
+    }
+
+    ImGui::InputText("Vertex Shader Entry Function", settings.vertexEntryName, IM_ARRAYSIZE(settings.vertexEntryName));
+
+    ImGui::InputText("Fragment Shader File", settings.fragmentShaderPath, IM_ARRAYSIZE(settings.fragmentShaderPath));
+    ImGui::SameLine();
+    if (ImGui::Button("...##Fragment")) {
+        const char* selectedPath = tinyfd_openFileDialog("Select Fragment Shader", "", 5, filter, "Shader Files", 0);
+        if (selectedPath) {
+            strncpy(settings.fragmentShaderPath, selectedPath, IM_ARRAYSIZE(settings.fragmentShaderPath));
+        }
+    }
+
+    ImGui::InputText("Fragment Shader Entry Function", settings.fragmentEntryName, IM_ARRAYSIZE(settings.fragmentEntryName));
+}
+
+void Editor::showShaderSettings(PipelineSettings& settings) {
+    ImGui::Separator();
+    ImGui::Text("Shaders");
+    showShaderFileSelector(settings);
+}
+
 
 void Editor::showPipelineView() {
 	// Place the Generate button on the same row, aligned to the right.
@@ -135,12 +248,12 @@ void Editor::showPipelineView() {
     ImGui::Separator();
 
     if (selectedPipelineNode&& selectedPipelineNode->settings) {
-        selectedPipelineNode->showInputAssemblySettings(selectedPipelineNode->settings.value());
-        selectedPipelineNode->showRasterizerSettings(selectedPipelineNode->settings.value());
-        selectedPipelineNode->showDepthStencilSettings(selectedPipelineNode->settings.value());
-        selectedPipelineNode->showMultisamplingSettings(selectedPipelineNode->settings.value());
-        selectedPipelineNode->showColorBlendingSettings(selectedPipelineNode->settings.value());
-        selectedPipelineNode->showShaderSettings(selectedPipelineNode->settings.value());
+        showInputAssemblySettings(selectedPipelineNode->settings.value());
+        showRasterizerSettings(selectedPipelineNode->settings.value());
+        showDepthStencilSettings(selectedPipelineNode->settings.value());
+        showMultisamplingSettings(selectedPipelineNode->settings.value());
+        showColorBlendingSettings(selectedPipelineNode->settings.value());
+        showShaderSettings(selectedPipelineNode->settings.value());
     } else {
         ImGui::Text("This node has no configurable pipeline settings.");
     }

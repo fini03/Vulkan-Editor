@@ -3,87 +3,82 @@
 #include "headers.h"
 #include "globalVariables.h"
 #include <iostream>
-#include "../libs/tinyfiledialogs.h"
 #include <vulkan/vulkan.h>
 
-const char* topologyOptions[] = { "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST", "VK_PRIMITIVE_TOPOLOGY_LINE_LIST" };
-const char* polygonModes[] = { "VK_POLYGON_MODE_FILL", "VK_POLYGON_MODE_LINE" };
-const char* cullModes[] = { "VK_CULL_MODE_NONE", "VK_CULL_MODE_BACK_BIT" };
-const char* frontFaceOptions[] = { "VK_FRONT_FACE_CLOCKWISE", "VK_FRONT_FACE_COUNTER_CLOCKWISE" };
-const char* depthCompareOptions[] = { "VK_COMPARE_OP_LESS", "VK_COMPARE_OP_GREATER" };
-const char* sampleCountOptions[] = { "VK_SAMPLE_COUNT_1_BIT", "VK_SAMPLE_COUNT_4_BIT" };
-const char* colorWriteMaskNames[] = {
-        "Red", "Green", "Blue", "Alpha"
-    };
-const uint32_t colorWriteMaskOptions[] = { VK_COLOR_COMPONENT_R_BIT, VK_COLOR_COMPONENT_G_BIT, VK_COLOR_COMPONENT_B_BIT, VK_COLOR_COMPONENT_A_BIT };
-const char* logicOps[] = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
+std::vector<const char*> topologyOptions = { "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST", "VK_PRIMITIVE_TOPOLOGY_LINE_LIST" };
+std::vector<const char*> polygonModes = { "VK_POLYGON_MODE_FILL", "VK_POLYGON_MODE_LINE" };
+std::vector<const char*> cullModes = { "VK_CULL_MODE_NONE", "VK_CULL_MODE_BACK_BIT" };
+std::vector<const char*> frontFaceOptions = { "VK_FRONT_FACE_CLOCKWISE", "VK_FRONT_FACE_COUNTER_CLOCKWISE" };
+std::vector<const char*> depthCompareOptions = { "VK_COMPARE_OP_LESS", "VK_COMPARE_OP_GREATER" };
+std::vector<const char*> sampleCountOptions = { "VK_SAMPLE_COUNT_1_BIT", "VK_SAMPLE_COUNT_4_BIT" };
+std::vector<const char*> colorWriteMaskNames = { "Red", "Green", "Blue", "Alpha" };
+std::vector<const char*> logicOps = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
 
 PipelineNode::PipelineNode(int id) : Node(id) {
-    	inputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexInput });
-        inputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorInput });
-        inputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureInput });
-        inputPins.push_back({ ed::PinId(id * 10 + 4), PinType::DepthInput });
+    inputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexInput });
+    inputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorInput });
+    inputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureInput });
+    inputPins.push_back({ ed::PinId(id * 10 + 4), PinType::DepthInput });
+}
 
+PipelineNode::~PipelineNode() { }
+
+void PipelineNode::render() const {
+   	ed::BeginNode(this->id);
+    ImGui::Text("Pipeline");
+
+    // Draw Pins
+    ed::BeginPin(this->id * 10 + 1, ed::PinKind::Input);
+    ImGui::Text("*vertex_data");
+    ed::EndPin();
+
+    ed::BeginPin(this->id * 10 + 2, ed::PinKind::Input);
+    ImGui::Text("*color_data");
+    ed::EndPin();
+
+    ed::BeginPin(this->id * 10 + 3, ed::PinKind::Input);
+    ImGui::Text("*texture_data");
+    ed::EndPin();
+
+    ed::EndNode();
+
+	for (auto& link : links) {
+    	ed::Link(link.id, link.startPin, link.endPin);
+   	}
+}
+
+void PipelineNode::generate(const PipelineSettings& settings) {
+    if (!vertexData) {
+        std::cerr << "No vertex data input set" << std::endl;
+        return;
     }
 
-    PipelineNode::~PipelineNode() { }
-
-    void PipelineNode::render() const {
-    	ed::BeginNode(this->id);
-	    ImGui::Text("Pipeline");
-
-	    // Draw Pins
-       ed::BeginPin(this->id * 10 + 1, ed::PinKind::Input);
-       ImGui::Text("*vertex_data");
-       ed::EndPin();
-
-       ed::BeginPin(this->id * 10 + 2, ed::PinKind::Input);
-       ImGui::Text("*color_data");
-       ed::EndPin();
-
-       ed::BeginPin(this->id * 10 + 3, ed::PinKind::Input);
-       ImGui::Text("*texture_data");
-       ed::EndPin();
-
-	    ed::EndNode();
-
-		for (auto& link : links) {
-       		ed::Link(link.id, link.startPin, link.endPin);
-   		}
+    if (!colorData) {
+    	std::cerr << "No color data input set" << std::endl;
+	    return;
     }
 
-    void PipelineNode::generate(const PipelineSettings& settings) {
-        if (!vertexData) {
-            std::cerr << "No vertex data input set" << std::endl;
-            return;
-        }
+    if (!textureData) {
+        std::cerr << "No texture data input set" << std::endl;
+        return;
+    }
 
-        if (!colorData) {
-	        std::cerr << "No color data input set" << std::endl;
-	        return;
-        }
+    generateHeaders();
+    model->generateVertexStructFilePart1();
+    vertexData->generateVertexBindings();
+    colorData->generateColorBindings();
+    textureData->generateTextureBindings();
+    model->generateVertexStructFilePart2();
+    generateGlobalVariables();
+    model->generateModel();
 
-        if (!textureData) {
-            std::cerr << "No texture data input set" << std::endl;
-            return;
-        }
+    outFile.open("Vertex.h", std::ios::app);
+    if (!outFile.is_open()) {
+        std::cerr << "Error opening file for writing.\n";
+        return;
+    }
 
-        generateHeaders();
-        model->generateVertexStructFilePart1();
-        vertexData->generateVertexBindings();
-        colorData->generateColorBindings();
-        textureData->generateTextureBindings();
-        model->generateVertexStructFilePart2();
-        generateGlobalVariables();
-        model->generateModel();
-
-        outFile.open("Vertex.h", std::ios::app);
-        if (!outFile.is_open()) {
-            std::cerr << "Error opening file for writing.\n";
-            return;
-        }
-
-        outFile << R"(
+    outFile << R"(
 
     static std::vector<char> readFile(const std::string& filename) {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -279,118 +274,9 @@ PipelineNode::PipelineNode(int id) : Node(id) {
         vkDestroyShaderModule(device, fragShaderModule, nullptr);
         vkDestroyShaderModule(device, vertShaderModule, nullptr);
     }
-};
-    )";
-        outFile.close();
+};)";
 
-        generateMain();
-    }
+    outFile.close();
 
-    void PipelineNode::showInputAssemblySettings(PipelineSettings& settings) {
-        ImGui::Text("Input Assembly");
-
-        ImGui::Combo("Vertex Topology", &settings.inputAssembly, topologyOptions, IM_ARRAYSIZE(topologyOptions));
-
-        ImGui::Checkbox("Primitive Restart", &settings.primitiveRestart);
-    }
-
-    void PipelineNode::showRasterizerSettings(PipelineSettings& settings) {
-        ImGui::Separator();
-        ImGui::Text("Rasterizer");
-
-        ImGui::Checkbox("Depth Clamp", &settings.depthClamp);
-        ImGui::Checkbox("Rasterizer Discard", &settings.rasterizerDiscard);
-
-        ImGui::Combo("Polygon Mode", &settings.polygonMode, polygonModes, IM_ARRAYSIZE(polygonModes));
-
-        ImGui::InputFloat("Line Width", &settings.lineWidth);
-
-        ImGui::Combo("Cull Mode", &settings.cullMode, cullModes, IM_ARRAYSIZE(cullModes));
-
-        ImGui::Combo("Front Face", &settings.frontFace, frontFaceOptions, IM_ARRAYSIZE(frontFaceOptions));
-
-        ImGui::Checkbox("Depth Bias Enabled", &settings.depthBiasEnabled);
-    }
-
-    void PipelineNode::showDepthStencilSettings(PipelineSettings& settings) {
-        ImGui::Separator();
-        ImGui::Text("Depth & Stencil");
-
-        ImGui::Checkbox("Depth Test", &settings.depthTest);
-        ImGui::Checkbox("Depth Write", &settings.depthWrite);
-
-        ImGui::Combo("Depth Compare Operation", &settings.depthCompareOp, depthCompareOptions, IM_ARRAYSIZE(depthCompareOptions));
-
-        ImGui::Checkbox("Depth Bounds Test", &settings.depthBoundsTest);
-
-        ImGui::Checkbox("Stencil Test", &settings.stencilTest);
-    }
-
-    void PipelineNode::showMultisamplingSettings(PipelineSettings& settings) {
-        ImGui::Separator();
-        ImGui::Text("Multisampling");
-
-        ImGui::Checkbox("Sample Shading", &settings.sampleShading);
-
-        ImGui::Combo("Rasterization Samples", &settings.rasterizationSamples, sampleCountOptions, IM_ARRAYSIZE(sampleCountOptions));
-    }
-
-    void PipelineNode::showColorBlendingSettings(PipelineSettings& settings) {
-        ImGui::Separator();
-        ImGui::Text("Color Blending");
-
-        ImGui::Text("Color Write Mask (Multiple selection)");
-
-        for (int i = 0; i < 4; i++) {
-            bool selected = (settings.colorWriteMask & colorWriteMaskOptions[i]) != 0;
-            if (ImGui::Checkbox(colorWriteMaskNames[i], &selected)) {
-            	if (selected)
-                	settings.colorWriteMask |= colorWriteMaskOptions[i];  // Enable flag
-                else
-                	settings.colorWriteMask &= ~colorWriteMaskOptions[i]; // Disable flag
-            }
-            if (i < 3) ImGui::SameLine();
-        }
-
-        ImGui::Checkbox("Color Blend", &settings.colorBlend);
-
-        ImGui::Checkbox("Logic Operation Enabled", &settings.logicOpEnable);
-
-        ImGui::Combo("Logic Operation", &settings.logicOp, logicOps, IM_ARRAYSIZE(logicOps));
-
-        ImGui::InputInt("Attachment Count", &settings.attachmentCount);
-
-        ImGui::InputFloat4("Color Blend Constants", settings.blendConstants);
-    }
-
-    void PipelineNode::showShaderFileSelector(PipelineSettings& settings) {
-        const char* filter[] = { "*.vert", "*.spv", "*.glsl", "*.txt", "*.*" }; // Shader file filters
-
-        ImGui::InputText("Vertex Shader File", settings.vertexShaderPath, IM_ARRAYSIZE(settings.vertexShaderPath));
-        ImGui::SameLine();
-        if (ImGui::Button("...##Vertex")) {
-            const char* selectedPath = tinyfd_openFileDialog("Select Vertex Shader", "", 5, filter, "Shader Files", 0);
-            if (selectedPath) {
-                strncpy(settings.vertexShaderPath, selectedPath, IM_ARRAYSIZE(settings.vertexShaderPath));
-            }
-        }
-
-        ImGui::InputText("Vertex Shader Entry Function", settings.vertexEntryName, IM_ARRAYSIZE(settings.vertexEntryName));
-
-        ImGui::InputText("Fragment Shader File", settings.fragmentShaderPath, IM_ARRAYSIZE(settings.fragmentShaderPath));
-        ImGui::SameLine();
-        if (ImGui::Button("...##Fragment")) {
-            const char* selectedPath = tinyfd_openFileDialog("Select Fragment Shader", "", 5, filter, "Shader Files", 0);
-            if (selectedPath) {
-                strncpy(settings.fragmentShaderPath, selectedPath, IM_ARRAYSIZE(settings.fragmentShaderPath));
-            }
-        }
-
-        ImGui::InputText("Fragment Shader Entry Function", settings.fragmentEntryName, IM_ARRAYSIZE(settings.fragmentEntryName));
-    }
-
-    void PipelineNode::showShaderSettings(PipelineSettings& settings) {
-        ImGui::Separator();
-        ImGui::Text("Shaders");
-        showShaderFileSelector(settings);
-    }
+    generateMain();
+}

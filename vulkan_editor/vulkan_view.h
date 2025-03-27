@@ -8,6 +8,15 @@
 
 namespace ed = ax::NodeEditor;
 
+extern std::vector<const char*>topologyOptions;
+extern std::vector<const char*> polygonModes;
+extern std::vector<const char*> cullModes;
+extern std::vector<const char*>frontFaceOptions;
+extern std::vector<const char*> depthCompareOptions;
+extern std::vector<const char*> sampleCountOptions;
+extern std::vector<const char*> colorWriteMaskNames;
+extern std::vector<const char*> logicOps;
+
 class Editor {
 public:
     ed::EditorContext* context = nullptr;
@@ -17,9 +26,19 @@ public:
 
     Editor();
 
-    void nodeEditorInitialize();
-    void saveFile();
-    void showPipelineView();
-    void showModelView();
     void startEditor();
+    void nodeEditorInitialize();
+
+    void saveFile();
+
+    void showModelView();
+
+    void showPipelineView();
+    void showInputAssemblySettings(PipelineSettings& settings);
+    void showRasterizerSettings(PipelineSettings& settings);
+    void showDepthStencilSettings(PipelineSettings& settings);
+    void showMultisamplingSettings(PipelineSettings& settings);
+    void showColorBlendingSettings(PipelineSettings& settings);
+    void showShaderFileSelector(PipelineSettings& settings);
+    void showShaderSettings(PipelineSettings& settings);
 };
