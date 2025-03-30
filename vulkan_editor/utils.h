@@ -1,2 +1,1 @@
-void generateBufferCreationCode();
-void generateImageCreationCode();
+void generateUtilsManagementCode();

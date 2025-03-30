@@ -232,8 +232,7 @@ class VulkanTutorial {
 
     outFile.close();
 
-    generateBufferCreationCode();
-    generateImageCreationCode();
+    generateUtilsManagementCode();
 
     RenderPassNode renderpass{id};
     renderpass.generateRenderpass();
