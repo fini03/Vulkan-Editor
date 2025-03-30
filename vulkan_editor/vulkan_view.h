@@ -5,7 +5,6 @@
 #include "pipeline.h"
 #include <SDL3/SDL_video.h>
 #include <memory>
-#include <inja/inja.hpp>
 
 namespace ed = ax::NodeEditor;
 

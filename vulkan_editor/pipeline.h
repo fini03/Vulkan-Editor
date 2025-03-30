@@ -1,5 +1,6 @@
 #include "model.h"
 #include <optional>
+#include <inja/inja.hpp>
 
 struct PipelineSettings {
     // Define settings for each category

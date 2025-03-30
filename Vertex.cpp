@@ -257,10 +257,6 @@ const std::string m_TEXTURE_PATH = "data/images/viking_room.png";
 
 class VulkanTutorial {
 	public:
-    void MemCopy(VkDevice device, void* source, VmaAllocationInfo& allocInfo, VkDeviceSize size) {
-        memcpy(allocInfo.pMappedData, source, size);
-    }
-
     VkCommandBuffer beginSingleTimeCommands(VkDevice device, VkCommandPool commandPool) {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -357,7 +353,11 @@ class VulkanTutorial {
         createDescriptorSets(device, object.m_texture, descriptorSetLayout, object.m_uniformBuffers, descriptorPool, object.m_descriptorSets);
         objects.push_back(object);
     }
-    
+
+    void MemCopy(VkDevice device, void* source, VmaAllocationInfo& allocInfo, VkDeviceSize size) {
+        memcpy(allocInfo.pMappedData, source, size);
+    }
+
     void createBuffer(
         VkPhysicalDevice physicalDevice,
         VkDevice device,
@@ -476,6 +476,19 @@ class VulkanTutorial {
             uniformBuffers.m_uniformBuffersMapped[i] = allocInfo.pMappedData;
         }
     }
+
+    void destroyImage(VkDevice device, VmaAllocator vmaAllocator, VkImage image, VmaAllocation& imageAllocation) {
+	    vmaDestroyImage(vmaAllocator, image, imageAllocation);
+	}
+
+	void createImageViews(VkDevice device, SwapChain& swapChain) {
+	    swapChain.m_swapChainImageViews.resize(swapChain.m_swapChainImages.size());
+
+	    for (uint32_t i = 0; i < swapChain.m_swapChainImages.size(); i++) {
+	        swapChain.m_swapChainImageViews[i] = createImageView(device, swapChain.m_swapChainImages[i]
+	            , swapChain.m_swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+	    }
+	}
 
     void transitionImageLayout(VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands(device, commandPool);
@@ -860,20 +873,6 @@ class VulkanTutorial {
 	            vkCreateFence(device, &fenceInfo, nullptr, &syncObjects.m_inFlightFences[i]) != VK_SUCCESS) {
 	            throw std::runtime_error("failed to create synchronization objects for a frame!");
 	        }
-	    }
-	}
-
-	void destroyImage(VkDevice device, VmaAllocator vmaAllocator, VkImage image, VmaAllocation& imageAllocation) {
-	    vmaDestroyImage(vmaAllocator, image, imageAllocation);
-	}
-
-
-	void createImageViews(VkDevice device, SwapChain& swapChain) {
-	    swapChain.m_swapChainImageViews.resize(swapChain.m_swapChainImages.size());
-
-	    for (uint32_t i = 0; i < swapChain.m_swapChainImages.size(); i++) {
-	        swapChain.m_swapChainImageViews[i] = createImageView(device, swapChain.m_swapChainImages[i]
-	            , swapChain.m_swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 	    }
 	}
 
@@ -1839,9 +1838,9 @@ class VulkanTutorial {
         rasterizer.depthClampEnable = VK_FALSE;
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-        rasterizer.lineWidth = 0;
+        rasterizer.lineWidth = 1;
         rasterizer.cullMode = VK_CULL_MODE_NONE;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
 
         VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -1868,9 +1867,9 @@ class VulkanTutorial {
         colorBlending.attachmentCount = 1;
 	    colorBlending.pAttachments = &colorBlendAttachment;
         colorBlending.blendConstants[0] = 0;
-        colorBlending.blendConstants[1] = 1;
-        colorBlending.blendConstants[2] = 2;
-        colorBlending.blendConstants[3] = 3;
+        colorBlending.blendConstants[1] = 0;
+        colorBlending.blendConstants[2] = 0;
+        colorBlending.blendConstants[3] = 0;
 
         std::vector<VkDynamicState> dynamicStates = {
             VK_DYNAMIC_STATE_VIEWPORT,

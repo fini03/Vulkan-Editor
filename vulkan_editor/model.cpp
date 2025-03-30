@@ -132,10 +132,6 @@ void ModelNode::generateModel() {
     outFile << R"(
 class VulkanTutorial {
 	public:
-    void MemCopy(VkDevice device, void* source, VmaAllocationInfo& allocInfo, VkDeviceSize size) {
-        memcpy(allocInfo.pMappedData, source, size);
-    }
-
     VkCommandBuffer beginSingleTimeCommands(VkDevice device, VkCommandPool commandPool) {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;

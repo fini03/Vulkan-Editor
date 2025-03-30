@@ -11,6 +11,10 @@ void generateBufferCreationCode() {
     }
 
     outFile << R"(
+    void MemCopy(VkDevice device, void* source, VmaAllocationInfo& allocInfo, VkDeviceSize size) {
+        memcpy(allocInfo.pMappedData, source, size);
+    }
+
     void createBuffer(
         VkPhysicalDevice physicalDevice,
         VkDevice device,
@@ -142,6 +146,19 @@ void generateImageCreationCode() {
     }
 
     outFile << R"(
+    void destroyImage(VkDevice device, VmaAllocator vmaAllocator, VkImage image, VmaAllocation& imageAllocation) {
+	    vmaDestroyImage(vmaAllocator, image, imageAllocation);
+	}
+
+	void createImageViews(VkDevice device, SwapChain& swapChain) {
+	    swapChain.m_swapChainImageViews.resize(swapChain.m_swapChainImages.size());
+
+	    for (uint32_t i = 0; i < swapChain.m_swapChainImages.size(); i++) {
+	        swapChain.m_swapChainImageViews[i] = createImageView(device, swapChain.m_swapChainImages[i]
+	            , swapChain.m_swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+	    }
+	}
+
     void transitionImageLayout(VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands(device, commandPool);
 

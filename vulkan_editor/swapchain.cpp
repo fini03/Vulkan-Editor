@@ -35,20 +35,6 @@ void SwapchainNode::generateSwapchain() {
 	    }
 	}
 
-	void destroyImage(VkDevice device, VmaAllocator vmaAllocator, VkImage image, VmaAllocation& imageAllocation) {
-	    vmaDestroyImage(vmaAllocator, image, imageAllocation);
-	}
-
-
-	void createImageViews(VkDevice device, SwapChain& swapChain) {
-	    swapChain.m_swapChainImageViews.resize(swapChain.m_swapChainImages.size());
-
-	    for (uint32_t i = 0; i < swapChain.m_swapChainImages.size(); i++) {
-	        swapChain.m_swapChainImageViews[i] = createImageView(device, swapChain.m_swapChainImages[i]
-	            , swapChain.m_swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
-	    }
-	}
-
 	void cleanupSwapChain(VkDevice device, VmaAllocator vmaAllocator, SwapChain& swapChain, DepthImage& depthImage) {
 	    vkDestroyImageView(device, depthImage.m_depthImageView, nullptr);
 
