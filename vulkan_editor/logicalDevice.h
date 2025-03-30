@@ -8,6 +8,6 @@ public:
 	~LogicalDeviceNode() override;
 
 	void render() const override;
-	std::ofstream outFile;
-	void generateLogicalDevice();
+
+	void generateLogicalDevice(std::ofstream& outFile);
 };

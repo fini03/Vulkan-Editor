@@ -32,7 +32,7 @@ done
 # Define source files and output binary
 IMGUI_DIR="./imgui"  # Path to your cloned ImGui repository
 
-SOURCE="Vertex.cpp \
+SOURCE="renderer.cpp \
     ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_demo.cpp \
     ${IMGUI_DIR}/imgui_widgets.cpp ${IMGUI_DIR}/imgui_tables.cpp \
     ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp \

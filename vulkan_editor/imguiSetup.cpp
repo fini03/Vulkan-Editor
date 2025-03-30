@@ -1,10 +1,8 @@
 #include "imguiSetup.h"
 #include <fstream>
 #include <iostream>
-std::ofstream outFile;
 
-void generateImguiCode() {
-    outFile.open("Vertex.h", std::ios::app);
+void generateImguiCode(std::ofstream& outFile) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -54,6 +52,4 @@ void generateImguiCode() {
 	    //ImGui_ImplVulkan_DestroyFontUploadObjects();
 	}
 )";
-
-    outFile.close();
 }

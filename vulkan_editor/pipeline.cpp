@@ -141,25 +141,24 @@ void PipelineNode::generate(const PipelineSettings& settings) {
         return;
     }
 
-    generateHeaders();
-    model->generateVertexStructFilePart1();
-    vertexData->generateVertexBindings();
-    colorData->generateColorBindings();
-    textureData->generateTextureBindings();
-    model->generateVertexStructFilePart2();
-    generateGlobalVariables();
-    model->generateModel();
-
-    outFile.open("Vertex.h", std::ios::app);
+    outFile.open("renderer.cpp", std::ios::trunc);
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
     }
 
+    generateHeaders(outFile);
+    model->generateVertexStructFilePart1(outFile);
+    vertexData->generateVertexBindings(outFile);
+    colorData->generateColorBindings(outFile);
+    textureData->generateTextureBindings(outFile);
+    model->generateVertexStructFilePart2(outFile);
+    generateGlobalVariables(outFile);
+    model->generateModel(outFile);
+
     fillOutputData(settings);
     outFile << result;
+    generateMain(outFile);
 
     outFile.close();
-
-    generateMain();
 }

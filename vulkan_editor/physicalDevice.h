@@ -8,6 +8,5 @@ public:
 	~PhysicalDeviceNode() override;
 
 	void render() const override;
-	std::ofstream outFile;
-	void generatePhysicalDevice();
+	void generatePhysicalDevice(std::ofstream& outFile);
 };

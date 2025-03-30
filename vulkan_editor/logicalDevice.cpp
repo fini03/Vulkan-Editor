@@ -12,8 +12,7 @@ LogicalDeviceNode::~LogicalDeviceNode() { }
 
 void LogicalDeviceNode::render() const {}
 
-void LogicalDeviceNode::generateLogicalDevice() {
-    outFile.open("Vertex.h", std::ios::app);
+void LogicalDeviceNode::generateLogicalDevice(std::ofstream& outFile) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -21,7 +20,6 @@ void LogicalDeviceNode::generateLogicalDevice() {
 
     outFile << result;
 
-    outFile.close();
     PhysicalDeviceNode physicalDevice{id};
-    physicalDevice.generatePhysicalDevice();
+    physicalDevice.generatePhysicalDevice(outFile);
 }

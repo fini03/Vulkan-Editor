@@ -13,8 +13,7 @@ InstanceNode::~InstanceNode() { }
 
 void InstanceNode::render() const {}
 
-void InstanceNode::generateInstance() {
-    outFile.open("Vertex.h", std::ios::app);
+void InstanceNode::generateInstance(std::ofstream& outFile) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -22,7 +21,6 @@ void InstanceNode::generateInstance() {
 
     outFile << result;
 
-    outFile.close();
     ApplicationNode application{id};
-    application.generateApplication();
+    application.generateApplication(outFile);
 }

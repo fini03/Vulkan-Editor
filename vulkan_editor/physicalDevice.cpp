@@ -13,8 +13,7 @@ PhysicalDeviceNode::~PhysicalDeviceNode() { }
 
 void PhysicalDeviceNode::render() const {}
 
-void PhysicalDeviceNode::generatePhysicalDevice() {
-    outFile.open("Vertex.h", std::ios::app);
+void PhysicalDeviceNode::generatePhysicalDevice(std::ofstream& outFile) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -22,7 +21,6 @@ void PhysicalDeviceNode::generatePhysicalDevice() {
 
     outFile << result;
 
-    outFile.close();
     InstanceNode instance{id};
-    instance.generateInstance();
+    instance.generateInstance(outFile);
 }

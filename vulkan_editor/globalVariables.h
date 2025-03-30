@@ -1,9 +1,7 @@
 #include <fstream>
 #include <iostream>
 
-void generateGlobalVariables() {
-    std::ofstream outFile;
-    outFile.open("Vertex.h", std::ios::app);
+void generateGlobalVariables(std::ofstream& outFile) {
     if (!outFile.is_open()) {
     	std::cerr << "Error opening file for writing.\n";
         return;

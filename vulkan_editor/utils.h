@@ -1,1 +1,3 @@
-void generateUtilsManagementCode();
+#include <iostream>
+
+void generateUtilsManagementCode(std::ofstream& outFile);

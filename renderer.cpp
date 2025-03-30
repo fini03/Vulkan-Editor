@@ -1829,9 +1829,9 @@ class VulkanTutorial {
 	    rasterizer.depthClampEnable = VK_FALSE;
 	    rasterizer.rasterizerDiscardEnable = VK_FALSE;
 	    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-	    rasterizer.lineWidth = 0.0;
+	    rasterizer.lineWidth = 1.0;
 	    rasterizer.cullMode = VK_CULL_MODE_NONE;
-	    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	    rasterizer.depthBiasEnable = VK_FALSE;
 
 	    VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -1859,9 +1859,9 @@ class VulkanTutorial {
 	    colorBlending.attachmentCount = 1;
 	    colorBlending.pAttachments = &colorBlendAttachment;
 	    colorBlending.blendConstants[0] = 0.0;
-	    colorBlending.blendConstants[1] = 1.0;
-	    colorBlending.blendConstants[2] = 2.0;
-	    colorBlending.blendConstants[3] = 3.0;
+	    colorBlending.blendConstants[1] = 0.0;
+	    colorBlending.blendConstants[2] = 0.0;
+	    colorBlending.blendConstants[3] = 0.0;
 
 
 	    std::vector<VkDynamicState> dynamicStates = {

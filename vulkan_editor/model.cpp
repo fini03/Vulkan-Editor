@@ -12,47 +12,40 @@ ModelNode::ModelNode(int id) : Node(id) {
 
 ModelNode::~ModelNode() { }
 
-void ModelNode::generateVertexBindings() {
- 	outFile.open("Vertex.h", std::ios::app);
+void ModelNode::generateVertexBindings(std::ofstream& outFile) {
 	if (outFile.is_open()) {
         outFile << "        attributeDescriptions[0].binding = 0;\n"
     	        << "        attributeDescriptions[0].location = 0;\n"
                 << "        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
                 << "        attributeDescriptions[0].offset = offsetof(Vertex, pos);\n\n";
-        outFile.close();
     } else {
        std::cerr << "Error opening file for writing.\n";
     }
 }
 
-void ModelNode::generateColorBindings() {
-	outFile.open("Vertex.h", std::ios::app);
+void ModelNode::generateColorBindings(std::ofstream& outFile) {
     if (outFile.is_open()) {
         outFile << "        attributeDescriptions[1].binding = 0;\n"
                 << "        attributeDescriptions[1].location = 1;\n"
                 << "        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
                 << "        attributeDescriptions[1].offset = offsetof(Vertex, color);\n\n";
-        outFile.close();
     } else {
     	std::cerr << "Error opening file for writing.\n";
     }
 }
 
-void ModelNode::generateTextureBindings() {
-  	outFile.open("Vertex.h", std::ios::app);
+void ModelNode::generateTextureBindings(std::ofstream& outFile) {
     if (outFile.is_open()) {
         outFile << "        attributeDescriptions[2].binding = 0;\n"
                 << "        attributeDescriptions[2].location = 2;\n"
                 << "        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;\n"
                 << "        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);\n\n";
-        outFile.close();
     } else {
         std::cerr << "Error opening file for writing.\n";
     }
 }
 
-void ModelNode::generateVertexStructFilePart1() {
-  	outFile.open("Vertex.h", std::ios::app);
+void ModelNode::generateVertexStructFilePart1(std::ofstream& outFile) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -73,12 +66,9 @@ void ModelNode::generateVertexStructFilePart1() {
 
             << "    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {\n"
             << "        std::vector<VkVertexInputAttributeDescription>attributeDescriptions(" << attributesCount << ");\n\n";
-
-    outFile.close();
 }
 
-void ModelNode::generateVertexStructFilePart2() {
-  	outFile.open("Vertex.h", std::ios::app);
+void ModelNode::generateVertexStructFilePart2(std::ofstream& outFile) {
    	if (!outFile.is_open()) {
     	std::cerr << "Error opening file for writing.\n";
 	    return;
@@ -115,12 +105,10 @@ namespace std {
 }
 )";
 
-    outFile.close();
     std::cout << "Vertex struct successfully written to Vertex.h\n";
 }
 
-void ModelNode::generateModel() {
-    outFile.open("Vertex.h", std::ios::app);
+void ModelNode::generateModel(std::ofstream& outFile) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -230,12 +218,10 @@ class VulkanTutorial {
     }
     )";
 
-    outFile.close();
-
-    generateUtilsManagementCode();
+    generateUtilsManagementCode(outFile);
 
     RenderPassNode renderpass{id};
-    renderpass.generateRenderpass();
+    renderpass.generateRenderpass(outFile);
 }
 
 void ModelNode::render() const {

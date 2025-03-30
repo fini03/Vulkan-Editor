@@ -13,8 +13,7 @@ SwapchainNode::~SwapchainNode() { }
 
 void SwapchainNode::render() const {}
 
-void SwapchainNode::generateSwapchain() {
-    outFile.open("Vertex.h", std::ios::app);
+void SwapchainNode::generateSwapchain(std::ofstream& outFile) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -22,8 +21,6 @@ void SwapchainNode::generateSwapchain() {
 
     outFile << result;
 
-    outFile.close();
-
     LogicalDeviceNode logicalDevice{id};
-	logicalDevice.generateLogicalDevice();
+	logicalDevice.generateLogicalDevice(outFile);
 }

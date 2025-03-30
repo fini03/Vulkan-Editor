@@ -8,6 +8,6 @@ public:
 	~InstanceNode() override;
 
 	void render() const override;
-	std::ofstream outFile;
-	void generateInstance();
+
+	void generateInstance(std::ofstream& outFile);
 };

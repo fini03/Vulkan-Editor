@@ -3,22 +3,21 @@
 
 class VertexDataNode {
 public:
-    virtual void generateVertexBindings() = 0;
+    virtual void generateVertexBindings(std::ofstream& outFile) = 0;
 };
 
 class ColorDataNode {
 public:
-    virtual void generateColorBindings() = 0;
+    virtual void generateColorBindings(std::ofstream& outFile) = 0;
 };
 
 class TextureDataNode {
 public:
-    virtual void generateTextureBindings() = 0;
+    virtual void generateTextureBindings(std::ofstream& outFile) = 0;
 };
 
 class ModelNode : public Node, public VertexDataNode, public ColorDataNode, public TextureDataNode {
 public:
-	std::ofstream outFile;
 	size_t attributesCount = 0;
 	char modelPath[256] = "data/models/viking_room.obj";
 	char texturePath[256] = "data/images/viking_room.png";
@@ -27,16 +26,16 @@ public:
 
     ~ModelNode() override;
 
-    void generateVertexBindings() override;
+    void generateVertexBindings(std::ofstream& outFile) override;
 
-    void generateColorBindings() override;
+    void generateColorBindings(std::ofstream& outFile) override;
 
-    void generateTextureBindings() override;
+    void generateTextureBindings(std::ofstream& outFile) override;
 
-    void generateVertexStructFilePart1();
+    void generateVertexStructFilePart1(std::ofstream& outFile);
 
-    void generateVertexStructFilePart2();
-    void generateModel();
+    void generateVertexStructFilePart2(std::ofstream& outFile);
+    void generateModel(std::ofstream& outFile);
 
     void render() const override;
 };

@@ -8,6 +8,5 @@ public:
 	~ApplicationNode() override;
 
 	void render() const override;
-	std::ofstream outFile;
-	void generateApplication();
+	void generateApplication(std::ofstream& outFile);
 };

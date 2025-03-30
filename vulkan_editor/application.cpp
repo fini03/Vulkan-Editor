@@ -5,8 +5,7 @@ ApplicationNode::~ApplicationNode() { }
 
 void ApplicationNode::render() const {}
 
-void ApplicationNode::generateApplication() {
-    outFile.open("Vertex.h", std::ios::app);
+void ApplicationNode::generateApplication(std::ofstream& outFile) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -393,6 +392,4 @@ void ApplicationNode::generateApplication() {
 	    //ImGui_ImplVulkan_DestroyFontUploadObjects();
 	}
 )";
-
-    outFile.close();
 }

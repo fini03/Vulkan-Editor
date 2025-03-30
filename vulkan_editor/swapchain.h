@@ -8,8 +8,5 @@ public:
     ~SwapchainNode() override;
 
     void render() const override;
-    void generateSwapchain();
-
-private:
-    std::ofstream outFile;
+    void generateSwapchain(std::ofstream& outFile);
 };

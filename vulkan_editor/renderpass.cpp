@@ -13,8 +13,7 @@ RenderPassNode::~RenderPassNode() { }
 
 void RenderPassNode::render() const {}
 
-void RenderPassNode::generateRenderpass() {
-    outFile.open("Vertex.h", std::ios::app);
+void RenderPassNode::generateRenderpass(std::ofstream& outFile) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -22,8 +21,6 @@ void RenderPassNode::generateRenderpass() {
 
     outFile << result;
 
-    outFile.close();
-
     SwapchainNode swapchain{id};
-	swapchain.generateSwapchain();
+	swapchain.generateSwapchain(outFile);
 }
