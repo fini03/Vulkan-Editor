@@ -10,3 +10,12 @@ void generateHeaders(std::ofstream& outFile, TemplateLoader templateLoader) {
 
     outFile << templateLoader.renderTemplateFile("vulkan_templates/header.txt", data);
 }
+
+void generateGlobalVariables(std::ofstream& outFile, TemplateLoader templateLoader) {
+    if (!outFile.is_open()) {
+    	std::cerr << "Error opening file for writing.\n";
+        return;
+    }
+
+    outFile << templateLoader.renderTemplateFile("vulkan_templates/globalVariables.txt", data);
+}

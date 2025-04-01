@@ -102,7 +102,6 @@ namespace std {
         }
     };
 }
-
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 const std::vector<const char*> m_validationLayers = {
@@ -249,7 +248,6 @@ struct SyncObjects {
 
 uint32_t m_currentFrame = 0;
 bool m_framebufferResized = false;
-
 const std::string m_MODEL_PATH = "data/models/viking_room.obj";
 const std::string m_TEXTURE_PATH = "data/images/viking_room.png";
 

@@ -1,7 +1,6 @@
 #include "pipeline.h"
 #include "model.h"
 #include "header.h"
-#include "globalVariables.h"
 #include <iostream>
 #include <vulkan/vulkan.h>
 #include <inja/inja.hpp>
@@ -147,7 +146,7 @@ void PipelineNode::generate(TemplateLoader templateLoader, const PipelineSetting
     colorData->generateColorBindings(outFile);
     textureData->generateTextureBindings(outFile);
     model->generateVertexStructFilePart2(outFile);
-    generateGlobalVariables(outFile);
+    generateGlobalVariables(outFile, templateLoader);
     model->generateModel(outFile, templateLoader);
 
     fillOutputData(settings);

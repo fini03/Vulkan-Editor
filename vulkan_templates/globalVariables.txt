@@ -1,13 +1,3 @@
-#include <fstream>
-#include <iostream>
-
-void generateGlobalVariables(std::ofstream& outFile) {
-    if (!outFile.is_open()) {
-    	std::cerr << "Error opening file for writing.\n";
-        return;
-    }
-
-    outFile << R"(
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 const std::vector<const char*> m_validationLayers = {
@@ -154,6 +144,3 @@ struct SyncObjects {
 
 uint32_t m_currentFrame = 0;
 bool m_framebufferResized = false;
-
-)";
-}
