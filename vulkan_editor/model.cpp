@@ -108,7 +108,7 @@ namespace std {
     std::cout << "Vertex struct successfully written to Vertex.h\n";
 }
 
-void ModelNode::generateModel(std::ofstream& outFile) {
+void ModelNode::generateModel(std::ofstream& outFile, TemplateLoader templateLoader) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;
@@ -221,7 +221,7 @@ class VulkanTutorial {
     generateUtilsManagementCode(outFile);
 
     RenderPassNode renderpass{id};
-    renderpass.generateRenderpass(outFile);
+    renderpass.generateRenderpass(outFile, templateLoader);
 }
 
 void ModelNode::render() const {

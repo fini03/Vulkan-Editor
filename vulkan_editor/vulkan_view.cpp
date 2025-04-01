@@ -1,13 +1,20 @@
 #include "vulkan_view.h"
 #include "model.h"
+#include "template_loader.h"
 #include <vulkan/vulkan.h>
+
+TemplateLoader templateLoader;
 
 PipelineNode* selectedPipelineNode = nullptr;
 ModelNode* selectedModelNode = nullptr;
 std::vector<uint32_t> colorWriteMaskOptions = { VK_COLOR_COMPONENT_R_BIT, VK_COLOR_COMPONENT_G_BIT, VK_COLOR_COMPONENT_B_BIT, VK_COLOR_COMPONENT_A_BIT };
 
-Editor::Editor() {
+Editor::Editor(const std::vector<std::string> templateFileNames) {
     if (!context) nodeEditorInitialize();
+
+    for (const std::string& fileName : templateFileNames) {
+    	templateLoader.loadTemplateFile(fileName);
+    }
 }
 
 void Editor::nodeEditorInitialize() {
@@ -19,7 +26,7 @@ void Editor::nodeEditorInitialize() {
 void Editor::saveFile() {
     for (const auto& node : nodes) {
         if (auto pipelineNode = dynamic_cast<PipelineNode*>(node.get())) {
-            pipelineNode->generate(pipelineNode->settings.value());
+            pipelineNode->generate(templateLoader, pipelineNode->settings.value());
         }
     }
 }

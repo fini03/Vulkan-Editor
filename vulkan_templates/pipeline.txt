@@ -155,3 +155,11 @@
 	    vkDestroyShaderModule(device, vertShaderModule, nullptr);
 	}
 };
+
+int main() {
+    VulkanTutorial tutorial;
+
+    tutorial.run();
+
+    return EXIT_SUCCESS;
+}

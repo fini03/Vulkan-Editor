@@ -24,7 +24,7 @@ public:
     std::vector<Link> links;
     int currentId = 1;
 
-    Editor();
+    Editor(const std::vector<std::string> templateFileNames);
 
     void startEditor();
     void nodeEditorInitialize();

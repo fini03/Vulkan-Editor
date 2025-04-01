@@ -35,7 +35,7 @@ public:
     void generateVertexStructFilePart1(std::ofstream& outFile);
 
     void generateVertexStructFilePart2(std::ofstream& outFile);
-    void generateModel(std::ofstream& outFile);
+    void generateModel(std::ofstream& outFile, TemplateLoader templateLoader);
 
     void render() const override;
 };

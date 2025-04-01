@@ -1,4 +1,5 @@
 #include <map>
+#include <string>
 #include <vulkan/vulkan_core.h>
 
 #define SDL_MAIN_HANDLED
@@ -28,6 +29,19 @@
 #include <array>
 
 #include "vulkan_editor/vulkan_view.h"
+
+const std::vector<std::string> templateFileNames = {
+	"vulkan_templates/application.txt",
+	"vulkan_templates/header.txt",
+	"vulkan_templates/instance.txt",
+	"vulkan_templates/logicalDevice.txt",
+	//"vulkan_templates/model.txt",
+	"vulkan_templates/physicalDevice.txt",
+	"vulkan_templates/pipeline.txt",
+	"vulkan_templates/renderpass.txt",
+	"vulkan_templates/swapchain.txt",
+	"vulkan_templates/utils.txt",
+};
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -87,7 +101,7 @@ private:
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
 
-    Editor editor{};
+    Editor editor{templateFileNames};
 
     void initWindow() {
     	if (!SDL_Init(SDL_INIT_VIDEO)) {

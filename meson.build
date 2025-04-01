@@ -36,6 +36,7 @@ vulkan_files = files(
 )
 
 editor_files = files(
+	'vulkan_editor/header.cpp',
 	'vulkan_editor/vulkan_view.cpp',
 	'vulkan_editor/swapchain.cpp',
 	'vulkan_editor/pipeline.cpp',
@@ -46,6 +47,7 @@ editor_files = files(
 	'vulkan_editor/instance.cpp',
 	'vulkan_editor/renderpass.cpp',
 	'vulkan_editor/utils.cpp',
+	'vulkan_editor/template_loader.cpp',
 )
 
 # Source Files

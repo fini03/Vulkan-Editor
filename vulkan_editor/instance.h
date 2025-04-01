@@ -9,5 +9,5 @@ public:
 
 	void render() const override;
 
-	void generateInstance(std::ofstream& outFile);
+	void generateInstance(std::ofstream& outFile, TemplateLoader templateLoader);
 };

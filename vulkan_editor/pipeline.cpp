@@ -1,6 +1,6 @@
 #include "pipeline.h"
 #include "model.h"
-#include "headers.h"
+#include "header.h"
 #include "globalVariables.h"
 #include <iostream>
 #include <vulkan/vulkan.h>
@@ -18,10 +18,7 @@ std::vector<const char*> sampleCountOptions = { "VK_SAMPLE_COUNT_1_BIT", "VK_SAM
 std::vector<const char*> colorWriteMaskNames = { "Red", "Green", "Blue", "Alpha" };
 std::vector<const char*> logicOps = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
 
-static json outputData;
-static Environment env;
-static std::string result;
-static Template temp = env.parse_template("vulkan_templates/pipeline.txt");
+json outputData;
 
 PipelineNode::PipelineNode(int id) : Node(id) {
     inputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexInput });
@@ -120,12 +117,9 @@ void fillOutputData(const PipelineSettings& settings) {
     outputData["logicOp"] = logicOps[settings.logicOp];
     outputData["attachmentCount"] = settings.attachmentCount;
     outputData["blendConstants"] = { settings.blendConstants[0], settings.blendConstants[1], settings.blendConstants[2], settings.blendConstants[3] };
-
-
-    result = env.render(temp, outputData);
 }
 
-void PipelineNode::generate(const PipelineSettings& settings) {
+void PipelineNode::generate(TemplateLoader templateLoader, const PipelineSettings& settings) {
     if (!vertexData) {
         std::cerr << "No vertex data input set" << std::endl;
         return;
@@ -147,18 +141,17 @@ void PipelineNode::generate(const PipelineSettings& settings) {
         return;
     }
 
-    generateHeaders(outFile);
+    generateHeaders(outFile, templateLoader);
     model->generateVertexStructFilePart1(outFile);
     vertexData->generateVertexBindings(outFile);
     colorData->generateColorBindings(outFile);
     textureData->generateTextureBindings(outFile);
     model->generateVertexStructFilePart2(outFile);
     generateGlobalVariables(outFile);
-    model->generateModel(outFile);
+    model->generateModel(outFile, templateLoader);
 
     fillOutputData(settings);
-    outFile << result;
-    generateMain(outFile);
+    outFile << templateLoader.renderTemplateFile("vulkan_templates/pipeline.txt", outputData);
 
     outFile.close();
 }

@@ -1,4 +1,5 @@
 #include "model.h"
+#include "template_loader.h"
 #include <optional>
 
 struct PipelineSettings {
@@ -44,7 +45,7 @@ public:
 
     void render() const override;
 
-    void generate(const PipelineSettings& settings);
+    void generate(TemplateLoader templateLoader, const PipelineSettings& settings);
 
     void setModel(ModelNode *model) {
         this->model = model;

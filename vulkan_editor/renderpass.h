@@ -8,5 +8,5 @@ public:
 	~RenderPassNode() override;
 
 	void render() const override;
-	void generateRenderpass(std::ofstream& outFile);
+	void generateRenderpass(std::ofstream& outFile, TemplateLoader templateLoader);
 };

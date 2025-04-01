@@ -9,5 +9,5 @@ public:
 
 	void render() const override;
 
-	void generateLogicalDevice(std::ofstream& outFile);
+	void generateLogicalDevice(std::ofstream& outFile, TemplateLoader templateLoader);
 };
