@@ -20,4 +20,6 @@ void InstanceNode::generateInstance(std::ofstream& outFile, TemplateLoader templ
     outFile << templateLoader.renderTemplateFile("vulkan_templates/instance.txt", data);
 
     generateApplication(outFile, templateLoader);
+
+    std::cout << "Code was sucessfully generated in renderer.cpp\n";
 }

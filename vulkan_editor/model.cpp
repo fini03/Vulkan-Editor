@@ -2,12 +2,16 @@
 #include "utils.h"
 
 namespace ed = ax::NodeEditor;
+static inja::json data;
 
 ModelNode::ModelNode(int id) : Node(id) {
  	outputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexOutput });
   	outputPins.push_back({ ed::PinId(id * 10 + 2), PinType::ColorOutput });
     outputPins.push_back({ ed::PinId(id * 10 + 3), PinType::TextureOutput });
     attributesCount = outputPins.size();
+
+    data["modelPath"] = modelPath;
+    data["texturePath"] = texturePath;
 }
 
 ModelNode::~ModelNode() { }
@@ -104,8 +108,6 @@ namespace std {
     };
 }
 )";
-
-    std::cout << "Vertex struct successfully written to Vertex.h\n";
 }
 
 void ModelNode::generateModel(std::ofstream& outFile, TemplateLoader templateLoader) {
@@ -114,111 +116,9 @@ void ModelNode::generateModel(std::ofstream& outFile, TemplateLoader templateLoa
         return;
     }
 
-    outFile << "const std::string m_MODEL_PATH = \"" << modelPath << "\";\n";
-    outFile << "const std::string m_TEXTURE_PATH = \"" << texturePath << "\";\n";
-
-    outFile << R"(
-class VulkanTutorial {
-	public:
-    VkCommandBuffer beginSingleTimeCommands(VkDevice device, VkCommandPool commandPool) {
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandPool = commandPool;
-        allocInfo.commandBufferCount = 1;
-
-        VkCommandBuffer commandBuffer;
-        vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-        return commandBuffer;
-    }
-
-    void endSingleTimeCommands(VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, VkCommandBuffer commandBuffer) {
-        vkEndCommandBuffer(commandBuffer);
-
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
-
-        vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(graphicsQueue);
-
-        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
-    }
-
-    void loadModel( Geometry& geometry, const std::string& MODEL_PATH) {
-        tinyobj::attrib_t attrib;
-        std::vector<tinyobj::shape_t> shapes;
-        std::vector<tinyobj::material_t> materials;
-        std::string warn, err;
-
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
-            throw std::runtime_error(warn + err);
-        }
-
-        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-        for (const auto& shape : shapes) {
-            for (const auto& index : shape.mesh.indices) {
-                Vertex vertex{};
-
-                vertex.pos = {
-                    attrib.vertices[3 * index.vertex_index + 0],
-                    attrib.vertices[3 * index.vertex_index + 1],
-                    attrib.vertices[3 * index.vertex_index + 2]
-                };
-
-                vertex.texCoord = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-                };
-
-                vertex.color = {1.0f, 1.0f, 1.0f};
-
-                if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] = static_cast<uint32_t>(geometry.m_vertices.size());
-                    geometry.m_vertices.push_back(vertex);
-                }
-
-                geometry.m_indices.push_back(uniqueVertices[vertex]);
-            }
-        }
-    }
-
-    void createObject(
-        VkPhysicalDevice physicalDevice,
-        VkDevice device,
-        VmaAllocator vmaAllocator,
-        VkQueue graphicsQueue,
-        VkCommandPool commandPool,
-        VkDescriptorPool descriptorPool,
-        VkDescriptorSetLayout descriptorSetLayout,
-        glm::mat4&& model,
-        std::string modelPath,
-        std::string texturePath,
-        std::vector<Object>& objects
-    ) {
-        Object object{{model}};
-        createTextureImage(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, texturePath, object.m_texture);
-        createTextureImageView(device, object.m_texture);
-        createTextureSampler(physicalDevice, device, object.m_texture);
-        loadModel(object.m_geometry, modelPath);
-        createVertexBuffer(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, object.m_geometry);
-        createIndexBuffer(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, object.m_geometry);
-        createUniformBuffers(physicalDevice, device, vmaAllocator, object.m_uniformBuffers);
-        createDescriptorSets(device, object.m_texture, descriptorSetLayout, object.m_uniformBuffers, descriptorPool, object.m_descriptorSets);
-        objects.push_back(object);
-    }
-    )";
-
-    generateUtilsManagementCode(outFile, templateLoader);
+    outFile << templateLoader.renderTemplateFile("vulkan_templates/model.txt", data);
+    generateBufferManagementCode(outFile, templateLoader);
+    generateImageManagementCode(outFile, templateLoader);
 
     RenderPassNode renderpass{id};
     renderpass.generateRenderpass(outFile, templateLoader);

@@ -255,39 +255,6 @@ const std::string m_TEXTURE_PATH = "data/images/viking_room.png";
 
 class VulkanTutorial {
 	public:
-    VkCommandBuffer beginSingleTimeCommands(VkDevice device, VkCommandPool commandPool) {
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandPool = commandPool;
-        allocInfo.commandBufferCount = 1;
-
-        VkCommandBuffer commandBuffer;
-        vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-        return commandBuffer;
-    }
-
-    void endSingleTimeCommands(VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, VkCommandBuffer commandBuffer) {
-        vkEndCommandBuffer(commandBuffer);
-
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
-
-        vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(graphicsQueue);
-
-        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
-    }
-
     void loadModel( Geometry& geometry, const std::string& MODEL_PATH) {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -340,7 +307,7 @@ class VulkanTutorial {
         std::string texturePath,
         std::vector<Object>& objects
     ) {
-        Object object{{model}};
+        Object object{model};
         createTextureImage(physicalDevice, device, vmaAllocator, graphicsQueue, commandPool, texturePath, object.m_texture);
         createTextureImageView(device, object.m_texture);
         createTextureSampler(physicalDevice, device, object.m_texture);
@@ -351,7 +318,7 @@ class VulkanTutorial {
         createDescriptorSets(device, object.m_texture, descriptorSetLayout, object.m_uniformBuffers, descriptorPool, object.m_descriptorSets);
         objects.push_back(object);
     }
-        void MemCopy(VkDevice device, void* source, VmaAllocationInfo& allocInfo, VkDeviceSize size) {
+    void MemCopy(VkDevice device, void* source, VmaAllocationInfo& allocInfo, VkDeviceSize size) {
         memcpy(allocInfo.pMappedData, source, size);
     }
 
@@ -454,26 +421,6 @@ class VulkanTutorial {
 
         destroyBuffer(device, vmaAllocator, stagingBuffer, stagingBufferAllocation);
     }
-
-    void createUniformBuffers(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator& vmaAllocator, UniformBuffers &uniformBuffers) {
-        VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-        uniformBuffers.m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-        uniformBuffers.m_uniformBuffersAllocation.resize(MAX_FRAMES_IN_FLIGHT);
-        uniformBuffers.m_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            VmaAllocationInfo allocInfo;
-            createBuffer(physicalDevice, device, vmaAllocator, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-                , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                , VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT
-                , uniformBuffers.m_uniformBuffers[i]
-                , uniformBuffers.m_uniformBuffersAllocation[i], &allocInfo);
-
-            uniformBuffers.m_uniformBuffersMapped[i] = allocInfo.pMappedData;
-        }
-    }
-
     void destroyImage(VkDevice device, VmaAllocator vmaAllocator, VkImage image, VmaAllocation& imageAllocation) {
 	    vmaDestroyImage(vmaAllocator, image, imageAllocation);
 	}
@@ -675,52 +622,6 @@ class VulkanTutorial {
             throw std::runtime_error("failed to create texture sampler!");
         }
     }
-
-    void createDescriptorSets(VkDevice device, Texture& texture, VkDescriptorSetLayout descriptorSetLayout, UniformBuffers& uniformBuffers, VkDescriptorPool descriptorPool, std::vector<VkDescriptorSet>& descriptorSets) {
-        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = descriptorPool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-        allocInfo.pSetLayouts = layouts.data();
-
-        descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-        if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate descriptor sets!");
-        }
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = uniformBuffers.m_uniformBuffers[i];
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(UniformBufferObject);
-
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = texture.m_textureImageView;
-            imageInfo.sampler = texture.m_textureSampler;
-
-            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[0].dstSet = descriptorSets[i];
-            descriptorWrites[0].dstBinding = 0;
-            descriptorWrites[0].dstArrayElement = 0;
-            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrites[0].descriptorCount = 1;
-            descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[1].dstSet = descriptorSets[i];
-            descriptorWrites[1].dstBinding = 1;
-            descriptorWrites[1].dstArrayElement = 0;
-            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites[1].descriptorCount = 1;
-            descriptorWrites[1].pImageInfo = &imageInfo;
-
-            vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-        }
-    }
 	void createRenderPass(VkPhysicalDevice physicalDevice, VkDevice device, SwapChain& swapChain, VkRenderPass& renderPass) {
 	    VkAttachmentDescription colorAttachment{};
 	    colorAttachment.format = swapChain.m_swapChainImageFormat;
@@ -776,77 +677,6 @@ class VulkanTutorial {
 
 	    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
 	        throw std::runtime_error("failed to create render pass!");
-	    }
-	}
-
-	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex
-	    , SwapChain& swapChain, VkRenderPass renderPass, Pipeline& graphicsPipeline
-	    , std::vector<Object>& objects //Geometry& geometry, std::vector<VkDescriptorSet>& descriptorSets
-		, uint32_t currentFrame) {
-
-	    VkCommandBufferBeginInfo beginInfo{};
-	    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-	    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-	        throw std::runtime_error("failed to begin recording command buffer!");
-	    }
-
-	    VkRenderPassBeginInfo renderPassInfo{};
-	    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	    renderPassInfo.renderPass = renderPass;
-	    renderPassInfo.framebuffer = swapChain.m_swapChainFramebuffers[imageIndex];
-	    renderPassInfo.renderArea.offset = {0, 0};
-	    renderPassInfo.renderArea.extent = swapChain.m_swapChainExtent;
-
-	    std::array<VkClearValue, 2> clearValues{};
-	    clearValues[0].color = {0.4f, 0.5f, 6.0f, 1.0f};
-	    clearValues[1].depthStencil = {1.0f, 0};
-
-	    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-	    renderPassInfo.pClearValues = clearValues.data();
-
-	    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-	        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.m_pipeline);
-
-	        VkViewport viewport{};
-	        viewport.x = 0.0f;
-	        viewport.y = 0.0f;
-	        viewport.width = (float) swapChain.m_swapChainExtent.width;
-	        viewport.height = (float) swapChain.m_swapChainExtent.height;
-	        viewport.minDepth = 0.0f;
-	        viewport.maxDepth = 1.0f;
-	        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-	        VkRect2D scissor{};
-	        scissor.offset = {0, 0};
-	        scissor.extent = swapChain.m_swapChainExtent;
-	        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-			for( auto& object : objects ) {
-	            VkBuffer vertexBuffers[] = {object.m_geometry.m_vertexBuffer};
-	            VkDeviceSize offsets[] = {0};
-	            vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-	            vkCmdBindIndexBuffer(commandBuffer, object.m_geometry.m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-	            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.m_pipelineLayout
-	                , 0, 1, &object.m_descriptorSets[currentFrame], 0, nullptr);
-
-	            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(object.m_geometry.m_indices.size()), 1, 0, 0, 0);
-			}
-
-	        //----------------------------------------------------------------------------------
-	        ImGui::Render();
-
-	        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-	        //----------------------------------------------------------------------------------
-
-
-	    vkCmdEndRenderPass(commandBuffer);
-
-	    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-	        throw std::runtime_error("failed to record command buffer!");
 	    }
 	}
 	void createSyncObjects(VkDevice device, SyncObjects& syncObjects) {
@@ -1368,146 +1198,6 @@ class VulkanTutorial {
 	        throw std::runtime_error("failed to create instance!");
 	    }
 	}
-
-
-	void createDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout& descriptorSetLayout) {
-	    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	    uboLayoutBinding.binding = 0;
-	    uboLayoutBinding.descriptorCount = 1;
-	    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	    uboLayoutBinding.pImmutableSamplers = nullptr;
-	    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	    samplerLayoutBinding.binding = 1;
-	    samplerLayoutBinding.descriptorCount = 1;
-	    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	    samplerLayoutBinding.pImmutableSamplers = nullptr;
-	    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
-	    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-	    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-	    layoutInfo.pBindings = bindings.data();
-
-	    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-	        throw std::runtime_error("failed to create descriptor set layout!");
-	    }
-	}
-
-	void createCommandPool(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool& commandPool) {
-	    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice, surface);
-
-	    VkCommandPoolCreateInfo poolInfo{};
-	    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-
-	    if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
-	        throw std::runtime_error("failed to create graphics command pool!");
-	    }
-	}
-
-	void createDescriptorPool(VkDevice device, VkDescriptorPool& descriptorPool) {
-	    /*std::array<VkDescriptorPoolSize, 2> poolSizes{};
-	    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	    poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-	    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	    poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-
-	    VkDescriptorPoolCreateInfo poolInfo{};
-	    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-	    poolInfo.pPoolSizes = poolSizes.data();
-	    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-
-	    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
-	        throw std::runtime_error("failed to create descriptor pool!");
-	    }*/
-
-	    VkDescriptorPoolSize pool_sizes[] =
-	    {
-	        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-	        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-	        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-	        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-	        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-	        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-	        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-	        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-	        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-	        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-	        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-	    };
-
-	    VkDescriptorPoolCreateInfo pool_info = {};
-	    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	    pool_info.maxSets = 1000;
-	    pool_info.poolSizeCount = std::size(pool_sizes);
-	    pool_info.pPoolSizes = pool_sizes;
-
-	    VkDescriptorPool imguiPool;
-	    vkCreateDescriptorPool(device, &pool_info, nullptr, &descriptorPool);
-	}
-
-	void createCommandBuffers(VkDevice device, VkCommandPool commandPool, std::vector<VkCommandBuffer>& commandBuffers) {
-	    commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-
-	    VkCommandBufferAllocateInfo allocInfo{};
-	    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	    allocInfo.commandPool = commandPool;
-	    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	    allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
-
-	    if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
-	        throw std::runtime_error("failed to allocate command buffers!");
-	    }
-	}
-
-	void setupImgui(
-	    VkInstance instance,
-	    VkPhysicalDevice physicalDevice,
-	    QueueFamilyIndices queueFamilies,
-	    VkDevice device,
-	    VkQueue graphicsQueue,
-	    VkCommandPool commandPool,
-	    VkDescriptorPool descriptorPool,
-	    VkRenderPass renderPass
-	) {
-	    // Setup Dear ImGui context
-	    IMGUI_CHECKVERSION();
-	    ImGui::CreateContext();
-	    ImGuiIO& io = ImGui::GetIO();
-	    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-	    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
-
-	    // Setup Platform/Renderer backends
-	    ImGui_ImplSDL2_InitForVulkan(m_sdlWindow);
-
-	    ImGui_ImplVulkan_InitInfo init_info = {};
-	    init_info.Instance = instance;
-	    init_info.PhysicalDevice = physicalDevice;
-	    init_info.Device = device;
-	    init_info.QueueFamily = queueFamilies.graphicsFamily.value();
-	    init_info.Queue = graphicsQueue;
-	    init_info.PipelineCache = VK_NULL_HANDLE;
-	    init_info.DescriptorPool = descriptorPool;
-	    init_info.RenderPass = renderPass;
-	    init_info.Subpass = 0;
-	    init_info.MinImageCount = 3;
-	    init_info.ImageCount = 3;
-	    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-	    init_info.Allocator = nullptr;
-	    init_info.CheckVkResultFn = nullptr;
-	    ImGui_ImplVulkan_Init(&init_info);
-	    // (this gets a bit more complicated, see example app for full reference)
-	    //ImGui_ImplVulkan_CreateFontsTexture(YOUR_COMMAND_BUFFER);
-	    // (your code submit a queue)
-	    //ImGui_ImplVulkan_DestroyFontUploadObjects();
-	}
 	void createSurface(VkInstance instance, VkSurfaceKHR& surface) {
 	    if (SDL_Vulkan_CreateSurface(m_sdlWindow, instance, &surface) == 0) {
 	        printf("Failed to create Vulkan surface.\n");
@@ -1747,6 +1437,313 @@ class VulkanTutorial {
 	    mainLoop();
 	    cleanup();
 	}
+    VkCommandBuffer beginSingleTimeCommands(VkDevice device, VkCommandPool commandPool) {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = commandPool;
+        allocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer commandBuffer;
+        vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+        return commandBuffer;
+    }
+
+    void endSingleTimeCommands(VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, VkCommandBuffer commandBuffer) {
+        vkEndCommandBuffer(commandBuffer);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+
+        vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(graphicsQueue);
+
+        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    }
+
+	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex
+	    , SwapChain& swapChain, VkRenderPass renderPass, Pipeline& graphicsPipeline
+	    , std::vector<Object>& objects //Geometry& geometry, std::vector<VkDescriptorSet>& descriptorSets
+		, uint32_t currentFrame) {
+
+	    VkCommandBufferBeginInfo beginInfo{};
+	    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+	    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+	        throw std::runtime_error("failed to begin recording command buffer!");
+	    }
+
+	    VkRenderPassBeginInfo renderPassInfo{};
+	    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	    renderPassInfo.renderPass = renderPass;
+	    renderPassInfo.framebuffer = swapChain.m_swapChainFramebuffers[imageIndex];
+	    renderPassInfo.renderArea.offset = {0, 0};
+	    renderPassInfo.renderArea.extent = swapChain.m_swapChainExtent;
+
+	    std::array<VkClearValue, 2> clearValues{};
+	    clearValues[0].color = {0.4f, 0.5f, 6.0f, 1.0f};
+	    clearValues[1].depthStencil = {1.0f, 0};
+
+	    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+	    renderPassInfo.pClearValues = clearValues.data();
+
+	    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+	        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.m_pipeline);
+
+	        VkViewport viewport{};
+	        viewport.x = 0.0f;
+	        viewport.y = 0.0f;
+	        viewport.width = (float) swapChain.m_swapChainExtent.width;
+	        viewport.height = (float) swapChain.m_swapChainExtent.height;
+	        viewport.minDepth = 0.0f;
+	        viewport.maxDepth = 1.0f;
+	        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+	        VkRect2D scissor{};
+	        scissor.offset = {0, 0};
+	        scissor.extent = swapChain.m_swapChainExtent;
+	        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+			for( auto& object : objects ) {
+	            VkBuffer vertexBuffers[] = {object.m_geometry.m_vertexBuffer};
+	            VkDeviceSize offsets[] = {0};
+	            vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+	            vkCmdBindIndexBuffer(commandBuffer, object.m_geometry.m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+	            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.m_pipelineLayout
+	                , 0, 1, &object.m_descriptorSets[currentFrame], 0, nullptr);
+
+	            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(object.m_geometry.m_indices.size()), 1, 0, 0, 0);
+			}
+
+	        //----------------------------------------------------------------------------------
+	        ImGui::Render();
+
+	        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+	        //----------------------------------------------------------------------------------
+
+
+	    vkCmdEndRenderPass(commandBuffer);
+
+	    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+	        throw std::runtime_error("failed to record command buffer!");
+	    }
+	}
+
+	void createCommandPool(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool& commandPool) {
+	    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice, surface);
+
+	    VkCommandPoolCreateInfo poolInfo{};
+	    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+
+	    if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+	        throw std::runtime_error("failed to create graphics command pool!");
+	    }
+	}
+
+	void createDescriptorPool(VkDevice device, VkDescriptorPool& descriptorPool) {
+	    /*std::array<VkDescriptorPoolSize, 2> poolSizes{};
+	    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	    poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	    poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+	    VkDescriptorPoolCreateInfo poolInfo{};
+	    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+	    poolInfo.pPoolSizes = poolSizes.data();
+	    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+	    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+	        throw std::runtime_error("failed to create descriptor pool!");
+	    }*/
+
+	    VkDescriptorPoolSize pool_sizes[] =
+	    {
+	        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+	        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+	        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+	        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+	        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+	        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+	        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+	        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+	        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+	        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+	        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+	    };
+
+	    VkDescriptorPoolCreateInfo pool_info = {};
+	    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	    pool_info.maxSets = 1000;
+	    pool_info.poolSizeCount = std::size(pool_sizes);
+	    pool_info.pPoolSizes = pool_sizes;
+
+	    VkDescriptorPool imguiPool;
+	    vkCreateDescriptorPool(device, &pool_info, nullptr, &descriptorPool);
+	}
+
+	void createCommandBuffers(VkDevice device, VkCommandPool commandPool, std::vector<VkCommandBuffer>& commandBuffers) {
+	    commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+
+	    VkCommandBufferAllocateInfo allocInfo{};
+	    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	    allocInfo.commandPool = commandPool;
+	    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	    allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
+
+	    if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
+	        throw std::runtime_error("failed to allocate command buffers!");
+	    }
+	}
+
+	void setupImgui(
+	    VkInstance instance,
+	    VkPhysicalDevice physicalDevice,
+	    QueueFamilyIndices queueFamilies,
+	    VkDevice device,
+	    VkQueue graphicsQueue,
+	    VkCommandPool commandPool,
+	    VkDescriptorPool descriptorPool,
+	    VkRenderPass renderPass
+	) {
+	    // Setup Dear ImGui context
+	    IMGUI_CHECKVERSION();
+	    ImGui::CreateContext();
+	    ImGuiIO& io = ImGui::GetIO();
+	    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+	    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
+
+	    // Setup Platform/Renderer backends
+	    ImGui_ImplSDL2_InitForVulkan(m_sdlWindow);
+
+	    ImGui_ImplVulkan_InitInfo init_info = {};
+	    init_info.Instance = instance;
+	    init_info.PhysicalDevice = physicalDevice;
+	    init_info.Device = device;
+	    init_info.QueueFamily = queueFamilies.graphicsFamily.value();
+	    init_info.Queue = graphicsQueue;
+	    init_info.PipelineCache = VK_NULL_HANDLE;
+	    init_info.DescriptorPool = descriptorPool;
+	    init_info.RenderPass = renderPass;
+	    init_info.Subpass = 0;
+	    init_info.MinImageCount = 3;
+	    init_info.ImageCount = 3;
+	    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	    init_info.Allocator = nullptr;
+	    init_info.CheckVkResultFn = nullptr;
+	    ImGui_ImplVulkan_Init(&init_info);
+	    // (this gets a bit more complicated, see example app for full reference)
+	    //ImGui_ImplVulkan_CreateFontsTexture(YOUR_COMMAND_BUFFER);
+	    // (your code submit a queue)
+	    //ImGui_ImplVulkan_DestroyFontUploadObjects();
+	}
+	    void createUniformBuffers(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator& vmaAllocator, UniformBuffers &uniformBuffers) {
+        VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+        uniformBuffers.m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+        uniformBuffers.m_uniformBuffersAllocation.resize(MAX_FRAMES_IN_FLIGHT);
+        uniformBuffers.m_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VmaAllocationInfo allocInfo;
+            createBuffer(physicalDevice, device, vmaAllocator, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+                , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+                , VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT
+                , uniformBuffers.m_uniformBuffers[i]
+                , uniformBuffers.m_uniformBuffersAllocation[i], &allocInfo);
+
+            uniformBuffers.m_uniformBuffersMapped[i] = allocInfo.pMappedData;
+        }
+    }
+
+    	void createDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout& descriptorSetLayout) {
+	    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+	    uboLayoutBinding.binding = 0;
+	    uboLayoutBinding.descriptorCount = 1;
+	    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	    uboLayoutBinding.pImmutableSamplers = nullptr;
+	    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+	    samplerLayoutBinding.binding = 1;
+	    samplerLayoutBinding.descriptorCount = 1;
+	    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	    samplerLayoutBinding.pImmutableSamplers = nullptr;
+	    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
+	    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+	    layoutInfo.pBindings = bindings.data();
+
+	    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+	        throw std::runtime_error("failed to create descriptor set layout!");
+	    }
+	}
+
+    void createDescriptorSets(VkDevice device, Texture& texture, VkDescriptorSetLayout descriptorSetLayout, UniformBuffers& uniformBuffers, VkDescriptorPool descriptorPool, std::vector<VkDescriptorSet>& descriptorSets) {
+        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        allocInfo.pSetLayouts = layouts.data();
+
+        descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+        if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VkDescriptorBufferInfo bufferInfo{};
+            bufferInfo.buffer = uniformBuffers.m_uniformBuffers[i];
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(UniformBufferObject);
+
+            VkDescriptorImageInfo imageInfo{};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.imageView = texture.m_textureImageView;
+            imageInfo.sampler = texture.m_textureSampler;
+
+            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[0].dstSet = descriptorSets[i];
+            descriptorWrites[0].dstBinding = 0;
+            descriptorWrites[0].dstArrayElement = 0;
+            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrites[0].descriptorCount = 1;
+            descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[1].dstSet = descriptorSets[i];
+            descriptorWrites[1].dstBinding = 1;
+            descriptorWrites[1].dstArrayElement = 0;
+            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorWrites[1].descriptorCount = 1;
+            descriptorWrites[1].pImageInfo = &imageInfo;
+
+            vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+        }
+    }
+
 	static std::vector<char> readFile(const std::string& filename) {
 	    std::ifstream file(filename, std::ios::ate | std::ios::binary);
 

@@ -32,10 +32,12 @@
 
 const std::vector<std::string> templateFileNames = {
 	"vulkan_templates/application.txt",
+	"vulkan_templates/buffer.txt",
 	"vulkan_templates/header.txt",
+	"vulkan_templates/image.txt",
 	"vulkan_templates/instance.txt",
 	"vulkan_templates/logicalDevice.txt",
-	//"vulkan_templates/model.txt",
+	"vulkan_templates/model.txt",
 	"vulkan_templates/physicalDevice.txt",
 	"vulkan_templates/pipeline.txt",
 	"vulkan_templates/renderpass.txt",
