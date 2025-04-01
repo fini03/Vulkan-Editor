@@ -5,12 +5,7 @@ using namespace inja;
 
 static json data;
 
-ApplicationNode::ApplicationNode(int id) : Node(id) {}
-ApplicationNode::~ApplicationNode() { }
-
-void ApplicationNode::render() const {}
-
-void ApplicationNode::generateApplication(std::ofstream& outFile, TemplateLoader templateLoader) {
+void generateApplication(std::ofstream& outFile, TemplateLoader templateLoader) {
     if (!outFile.is_open()) {
         std::cerr << "Error opening file for writing.\n";
         return;

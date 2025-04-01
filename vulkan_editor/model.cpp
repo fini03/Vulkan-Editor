@@ -218,7 +218,7 @@ class VulkanTutorial {
     }
     )";
 
-    generateUtilsManagementCode(outFile);
+    generateUtilsManagementCode(outFile, templateLoader);
 
     RenderPassNode renderpass{id};
     renderpass.generateRenderpass(outFile, templateLoader);

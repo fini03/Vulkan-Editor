@@ -1,5 +1,7 @@
 #pragma once
-#include "application.h"
+
+#include "template_loader.h"
+#include "node.h"
 #include <fstream>
 
 class InstanceNode : public Node {
