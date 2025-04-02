@@ -1,4 +1,6 @@
-	    void createUniformBuffers(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator& vmaAllocator, UniformBuffers &uniformBuffers) {
+	{{ model }}
+
+	void createUniformBuffers(VkPhysicalDevice physicalDevice, VkDevice device, VmaAllocator& vmaAllocator, UniformBuffers &uniformBuffers) {
         VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
         uniformBuffers.m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -245,12 +247,3 @@
 	    vkDestroyShaderModule(device, fragShaderModule, nullptr);
 	    vkDestroyShaderModule(device, vertShaderModule, nullptr);
 	}
-};
-
-int main() {
-    VulkanTutorial tutorial;
-
-    tutorial.run();
-
-    return EXIT_SUCCESS;
-}

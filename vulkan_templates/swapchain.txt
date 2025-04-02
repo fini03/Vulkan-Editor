@@ -1,3 +1,6 @@
+
+	{{ logicalDevice }}
+
 	void createSyncObjects(VkDevice device, SyncObjects& syncObjects) {
 	    syncObjects.m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	    syncObjects.m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);

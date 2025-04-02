@@ -3,17 +3,17 @@
 
 class VertexDataNode {
 public:
-    virtual void generateVertexBindings(std::ofstream& outFile) = 0;
+    virtual std::string generateVertexBindings(std::ofstream& outFile) = 0;
 };
 
 class ColorDataNode {
 public:
-    virtual void generateColorBindings(std::ofstream& outFile) = 0;
+    virtual std::string generateColorBindings(std::ofstream& outFile) = 0;
 };
 
 class TextureDataNode {
 public:
-    virtual void generateTextureBindings(std::ofstream& outFile) = 0;
+    virtual std::string generateTextureBindings(std::ofstream& outFile) = 0;
 };
 
 class ModelNode : public Node, public VertexDataNode, public ColorDataNode, public TextureDataNode {
@@ -26,16 +26,14 @@ public:
 
     ~ModelNode() override;
 
-    void generateVertexBindings(std::ofstream& outFile) override;
+    std::string generateVertexBindings(std::ofstream& outFile) override;
+    std::string generateColorBindings(std::ofstream& outFile) override;
+    std::string generateTextureBindings(std::ofstream& outFile) override;
 
-    void generateColorBindings(std::ofstream& outFile) override;
+    std::string generateVertexStructFilePart1(std::ofstream& outFile);
+    std::string generateVertexStructFilePart2(std::ofstream& outFile);
 
-    void generateTextureBindings(std::ofstream& outFile) override;
-
-    void generateVertexStructFilePart1(std::ofstream& outFile);
-
-    void generateVertexStructFilePart2(std::ofstream& outFile);
-    void generateModel(std::ofstream& outFile, TemplateLoader templateLoader);
+    std::string generateModel(TemplateLoader templateLoader);
 
     void render() const override;
 };

@@ -10,14 +10,10 @@ SwapchainNode::~SwapchainNode() { }
 
 void SwapchainNode::render() const {}
 
-void SwapchainNode::generateSwapchain(std::ofstream& outFile, TemplateLoader templateLoader) {
-    if (!outFile.is_open()) {
-        std::cerr << "Error opening file for writing.\n";
-        return;
-    }
+std::string SwapchainNode::generateSwapchain(TemplateLoader templateLoader) {
 
-    outFile << templateLoader.renderTemplateFile("vulkan_templates/swapchain.txt", data);
+	LogicalDeviceNode logicalDevice{id};
+	data["logicalDevice"] = logicalDevice.generateLogicalDevice(templateLoader);
 
-    LogicalDeviceNode logicalDevice{id};
-	logicalDevice.generateLogicalDevice(outFile, templateLoader);
+	return templateLoader.renderTemplateFile("vulkan_templates/swapchain.txt", data);
 }

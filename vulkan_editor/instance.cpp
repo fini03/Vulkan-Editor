@@ -11,15 +11,11 @@ InstanceNode::~InstanceNode() { }
 
 void InstanceNode::render() const {}
 
-void InstanceNode::generateInstance(std::ofstream& outFile, TemplateLoader templateLoader) {
-    if (!outFile.is_open()) {
-        std::cerr << "Error opening file for writing.\n";
-        return;
-    }
+std::string InstanceNode::generateInstance(TemplateLoader templateLoader) {
+	data["application"] = templateLoader.renderTemplateFile("vulkan_templates/application.txt", data);
+	data["utils"] = templateLoader.renderTemplateFile("vulkan_templates/utils.txt", data);
 
-    outFile << templateLoader.renderTemplateFile("vulkan_templates/instance.txt", data);
-
-    generateApplication(outFile, templateLoader);
+    return templateLoader.renderTemplateFile("vulkan_templates/instance.txt", data);
 
     std::cout << "Code was sucessfully generated in renderer.cpp\n";
 }

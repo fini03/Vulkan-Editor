@@ -11,5 +11,5 @@ public:
 
 	void render() const override;
 
-	void generateInstance(std::ofstream& outFile, TemplateLoader templateLoader);
+	std::string generateInstance(TemplateLoader templateLoader);
 };

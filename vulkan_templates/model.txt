@@ -1,8 +1,10 @@
 const std::string m_MODEL_PATH = "{{ modelPath }}";
 const std::string m_TEXTURE_PATH = "{{ texturePath }}";
 
-class VulkanTutorial {
-	public:
+    {{ renderpass }}
+    {{ buffer }}
+    {{ image }}
+
     void loadModel( Geometry& geometry, const std::string& MODEL_PATH) {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;

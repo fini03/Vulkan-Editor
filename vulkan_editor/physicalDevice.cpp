@@ -10,14 +10,9 @@ PhysicalDeviceNode::~PhysicalDeviceNode() { }
 
 void PhysicalDeviceNode::render() const {}
 
-void PhysicalDeviceNode::generatePhysicalDevice(std::ofstream& outFile, TemplateLoader templateLoader) {
-    if (!outFile.is_open()) {
-        std::cerr << "Error opening file for writing.\n";
-        return;
-    }
+std::string PhysicalDeviceNode::generatePhysicalDevice(TemplateLoader templateLoader) {
+	InstanceNode instance{id};
+    data["instance"] = instance.generateInstance(templateLoader);
 
-    outFile << templateLoader.renderTemplateFile("vulkan_templates/physicalDevice.txt", data);
-
-    InstanceNode instance{id};
-    instance.generateInstance(outFile, templateLoader);
+    return templateLoader.renderTemplateFile("vulkan_templates/physicalDevice.txt", data);
 }

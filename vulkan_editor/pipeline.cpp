@@ -17,6 +17,7 @@ std::vector<const char*> sampleCountOptions = { "VK_SAMPLE_COUNT_1_BIT", "VK_SAM
 std::vector<const char*> colorWriteMaskNames = { "Red", "Green", "Blue", "Alpha" };
 std::vector<const char*> logicOps = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
 
+json data;
 json outputData;
 
 PipelineNode::PipelineNode(int id) : Node(id) {
@@ -140,17 +141,19 @@ void PipelineNode::generate(TemplateLoader templateLoader, const PipelineSetting
         return;
     }
 
-    generateHeaders(outFile, templateLoader);
-    model->generateVertexStructFilePart1(outFile);
-    vertexData->generateVertexBindings(outFile);
-    colorData->generateColorBindings(outFile);
-    textureData->generateTextureBindings(outFile);
-    model->generateVertexStructFilePart2(outFile);
-    generateGlobalVariables(outFile, templateLoader);
-    model->generateModel(outFile, templateLoader);
+    std::string result = model->generateVertexStructFilePart1(outFile);
+    result += vertexData->generateVertexBindings(outFile);
+    result += colorData->generateColorBindings(outFile);
+    result += textureData->generateTextureBindings(outFile);
+    result += model->generateVertexStructFilePart2(outFile);
+
+    data["header"] = generateHeaders(templateLoader) + result;
+    data["globalVariables"] = generateGlobalVariables(templateLoader);
 
     fillOutputData(settings);
-    outFile << templateLoader.renderTemplateFile("vulkan_templates/pipeline.txt", outputData);
+    outputData["model"] = model->generateModel(templateLoader);
+    data["pipeline"] = templateLoader.renderTemplateFile("vulkan_templates/pipeline.txt", outputData);
 
+    outFile << templateLoader.renderTemplateFile("vulkan_templates/class.txt", data);
     outFile.close();
 }

@@ -1,3 +1,5 @@
+	{{ swapchain }}
+
 	void createRenderPass(VkPhysicalDevice physicalDevice, VkDevice device, SwapChain& swapChain, VkRenderPass& renderPass) {
 	    VkAttachmentDescription colorAttachment{};
 	    colorAttachment.format = swapChain.m_swapChainImageFormat;

@@ -31,6 +31,7 @@
 #include "vulkan_editor/vulkan_view.h"
 
 const std::vector<std::string> templateFileNames = {
+	"vulkan_templates/class.txt",
 	"vulkan_templates/application.txt",
 	"vulkan_templates/buffer.txt",
 	"vulkan_templates/globalVariables.txt",

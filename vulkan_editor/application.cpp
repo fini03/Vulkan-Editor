@@ -11,6 +11,4 @@ void generateApplication(std::ofstream& outFile, TemplateLoader templateLoader) 
         return;
     }
 
-	outFile << templateLoader.renderTemplateFile("vulkan_templates/application.txt", data);
-	outFile << templateLoader.renderTemplateFile("vulkan_templates/utils.txt", data);
 }

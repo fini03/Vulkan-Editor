@@ -16,77 +16,73 @@ ModelNode::ModelNode(int id) : Node(id) {
 
 ModelNode::~ModelNode() { }
 
-void ModelNode::generateVertexBindings(std::ofstream& outFile) {
-	if (outFile.is_open()) {
-        outFile << "        attributeDescriptions[0].binding = 0;\n"
-    	        << "        attributeDescriptions[0].location = 0;\n"
-                << "        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
-                << "        attributeDescriptions[0].offset = offsetof(Vertex, pos);\n\n";
-    } else {
-       std::cerr << "Error opening file for writing.\n";
-    }
+std::string ModelNode::generateVertexBindings(std::ofstream& outFile) {
+	std::string result = "";
+
+    result += "        attributeDescriptions[0].binding = 0;\n";
+    result += "        attributeDescriptions[0].location = 0;\n";
+    result += "        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;\n";
+    result += "        attributeDescriptions[0].offset = offsetof(Vertex, pos);\n\n";
+
+    return result;
 }
 
-void ModelNode::generateColorBindings(std::ofstream& outFile) {
-    if (outFile.is_open()) {
-        outFile << "        attributeDescriptions[1].binding = 0;\n"
-                << "        attributeDescriptions[1].location = 1;\n"
-                << "        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;\n"
-                << "        attributeDescriptions[1].offset = offsetof(Vertex, color);\n\n";
-    } else {
-    	std::cerr << "Error opening file for writing.\n";
-    }
+std::string ModelNode::generateColorBindings(std::ofstream& outFile) {
+	std::string result = "";
+    result += "        attributeDescriptions[1].binding = 0;\n";
+    result += "        attributeDescriptions[1].location = 1;\n";
+    result += "        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;\n";
+    result += "        attributeDescriptions[1].offset = offsetof(Vertex, color);\n\n";
+
+    return result;
 }
 
-void ModelNode::generateTextureBindings(std::ofstream& outFile) {
-    if (outFile.is_open()) {
-        outFile << "        attributeDescriptions[2].binding = 0;\n"
-                << "        attributeDescriptions[2].location = 2;\n"
-                << "        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;\n"
-                << "        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);\n\n";
-    } else {
-        std::cerr << "Error opening file for writing.\n";
-    }
+std::string ModelNode::generateTextureBindings(std::ofstream& outFile) {
+	std::string result = "";
+	result += "        attributeDescriptions[2].binding = 0;\n";
+	result += "        attributeDescriptions[2].location = 2;\n";
+	result += "        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;\n";
+    result += "        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);\n\n";
+
+    return result;
 }
 
-void ModelNode::generateVertexStructFilePart1(std::ofstream& outFile) {
-    if (!outFile.is_open()) {
-        std::cerr << "Error opening file for writing.\n";
-        return;
+std::string ModelNode::generateVertexStructFilePart1(std::ofstream& outFile) {
+	std::string result = "";
+    result +=  R"(
+struct Vertex {
+	glm::vec3 pos;
+    glm::vec3 color;
+    glm::vec2 texCoord;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+    	VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(Vertex);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return bindingDescription;
     }
 
-    outFile << "struct Vertex {\n"
-            << "    glm::vec3 pos;\n"
-            << "    glm::vec3 color;\n"
-            << "    glm::vec2 texCoord;\n\n"
+    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+)";
+    result += "        std::vector<VkVertexInputAttributeDescription>attributeDescriptions(" + std::to_string(attributesCount);
+   result += ");\n\n";
 
-            << "    static VkVertexInputBindingDescription getBindingDescription() {\n"
-            << "        VkVertexInputBindingDescription bindingDescription{};\n"
-            << "        bindingDescription.binding = 0;\n"
-            << "        bindingDescription.stride = sizeof(Vertex);\n"
-            << "        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;\n\n"
-            << "        return bindingDescription;\n"
-            << "    }\n\n"
-
-            << "    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {\n"
-            << "        std::vector<VkVertexInputAttributeDescription>attributeDescriptions(" << attributesCount << ");\n\n";
+   return result;
 }
 
-void ModelNode::generateVertexStructFilePart2(std::ofstream& outFile) {
-   	if (!outFile.is_open()) {
-    	std::cerr << "Error opening file for writing.\n";
-	    return;
-	}
+std::string ModelNode::generateVertexStructFilePart2(std::ofstream& outFile) {
+	std::string result = "";
+    result += "        return attributeDescriptions;\n";
+    result += "    }\n\n";
 
-    outFile << "        return attributeDescriptions;\n"
-            << "    }\n\n"
+    result += "    bool operator==(const Vertex& other) const {\n";
+    result += "        return pos == other.pos && color == other.color && texCoord == other.texCoord;\n";
+    result += "    }\n";
+    result += "};\n\n";
 
-            << "    bool operator==(const Vertex& other) const {\n"
-            << "        return pos == other.pos && color == other.color && texCoord == other.texCoord;\n"
-            << "    }\n"
-            << "};\n\n";
-
-    outFile << R"(
+    result += R"(
 namespace std {
     template<> struct hash<glm::vec2> {
         size_t operator()(glm::vec2 const& vec) const {
@@ -108,20 +104,18 @@ namespace std {
     };
 }
 )";
+    return result;
 }
 
-void ModelNode::generateModel(std::ofstream& outFile, TemplateLoader templateLoader) {
-    if (!outFile.is_open()) {
-        std::cerr << "Error opening file for writing.\n";
-        return;
-    }
-
-    outFile << templateLoader.renderTemplateFile("vulkan_templates/model.txt", data);
-    generateBufferManagementCode(outFile, templateLoader);
-    generateImageManagementCode(outFile, templateLoader);
-
+std::string ModelNode::generateModel(TemplateLoader templateLoader) {
     RenderPassNode renderpass{id};
-    renderpass.generateRenderpass(outFile, templateLoader);
+
+    data["buffer"] = templateLoader.renderTemplateFile("vulkan_templates/buffer.txt", data);
+    data["image"] = templateLoader.renderTemplateFile("vulkan_templates/image.txt", data);
+
+    data["renderpass"] = renderpass.generateRenderpass(templateLoader);
+
+    return templateLoader.renderTemplateFile("vulkan_templates/model.txt", data);
 }
 
 void ModelNode::render() const {

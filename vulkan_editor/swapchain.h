@@ -8,5 +8,5 @@ public:
     ~SwapchainNode() override;
 
     void render() const override;
-    void generateSwapchain(std::ofstream& outFile, TemplateLoader templateLoader);
+    std::string generateSwapchain(TemplateLoader templateLoader);
 };

@@ -1,0 +1,16 @@
+{{ header }}
+
+{{ globalVariables }}
+
+class VulkanTutorial {
+	public:
+	{{ pipeline }}
+};
+
+int main() {
+    VulkanTutorial tutorial;
+
+    tutorial.run();
+
+    return EXIT_SUCCESS;
+}
