@@ -1846,7 +1846,7 @@ const std::string m_TEXTURE_PATH = "data/images/viking_room.png";
 	    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	    rasterizer.lineWidth = 1.0;
 	    rasterizer.cullMode = VK_CULL_MODE_NONE;
-	    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	    rasterizer.depthBiasEnable = VK_FALSE;
 
 	    VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -1874,9 +1874,9 @@ const std::string m_TEXTURE_PATH = "data/images/viking_room.png";
 	    colorBlending.attachmentCount = 1;
 	    colorBlending.pAttachments = &colorBlendAttachment;
 	    colorBlending.blendConstants[0] = 0.0;
-	    colorBlending.blendConstants[1] = 0.0;
-	    colorBlending.blendConstants[2] = 0.0;
-	    colorBlending.blendConstants[3] = 0.0;
+	    colorBlending.blendConstants[1] = 1.0;
+	    colorBlending.blendConstants[2] = 2.0;
+	    colorBlending.blendConstants[3] = 3.0;
 
 
 	    std::vector<VkDynamicState> dynamicStates = {
