@@ -4,7 +4,6 @@
 #include <iostream>
 #include <vulkan/vulkan.h>
 #include <inja/inja.hpp>
-using namespace inja;
 
 namespace ed = ax::NodeEditor;
 
@@ -16,9 +15,6 @@ std::vector<const char*> depthCompareOptions = { "VK_COMPARE_OP_LESS", "VK_COMPA
 std::vector<const char*> sampleCountOptions = { "VK_SAMPLE_COUNT_1_BIT", "VK_SAMPLE_COUNT_4_BIT" };
 std::vector<const char*> colorWriteMaskNames = { "Red", "Green", "Blue", "Alpha" };
 std::vector<const char*> logicOps = { "VK_LOGIC_OP_COPY", "VK_LOGIC_OP_XOR" };
-
-json data;
-json outputData;
 
 PipelineNode::PipelineNode(int id) : Node(id) {
     inputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexInput });
@@ -84,7 +80,7 @@ std::string getColorWriteMaskString(uint32_t mask) {
     return result;
 }
 
-void fillOutputData(const PipelineSettings& settings) {
+void PipelineNode::fillOutputData(const PipelineSettings& settings) {
 	outputData["vertexShaderPath"] = settings.vertexShaderPath;
 	outputData["fragmentShaderPath"] = settings.fragmentShaderPath;
     outputData["vertexEntryName"] = settings.vertexEntryName;

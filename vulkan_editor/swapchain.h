@@ -9,4 +9,6 @@ public:
 
     void render() const override;
     std::string generateSwapchain(TemplateLoader templateLoader);
+private:
+	inja::json data;
 };

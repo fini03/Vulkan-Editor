@@ -3,7 +3,6 @@
 #include "../imgui-node-editor/imgui_node_editor.h"
 #include "../libs/tinyfiledialogs.h"
 #include "pipeline.h"
-#include <SDL3/SDL_video.h>
 #include <memory>
 
 namespace ed = ax::NodeEditor;
@@ -23,6 +22,8 @@ public:
     std::vector<std::unique_ptr<Node>> nodes;
     std::vector<Link> links;
     int currentId = 1;
+
+    TemplateLoader templateLoader = {};
 
     Editor(const std::vector<std::string> templateFileNames);
 

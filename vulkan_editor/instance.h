@@ -12,4 +12,6 @@ public:
 	void render() const override;
 
 	std::string generateInstance(TemplateLoader templateLoader);
+private:
+	inja::json data;
 };

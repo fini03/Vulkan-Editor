@@ -9,4 +9,6 @@ public:
 
 	void render() const override;
 	std::string generateRenderpass(TemplateLoader templateLoader);
+private:
+	inja::json data;
 };

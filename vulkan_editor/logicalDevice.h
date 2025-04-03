@@ -10,4 +10,6 @@ public:
 	void render() const override;
 
 	std::string generateLogicalDevice(TemplateLoader templateLoader);
+private:
+	inja::json data;
 };

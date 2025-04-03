@@ -28,30 +28,21 @@ imgui_files = files(
   'imgui-node-editor/imgui_canvas.cpp'
 )
 
-# Vulkan Files
-vulkan_files = files(
-  'vulkan_base/vulkan_device.cpp',
-  'vulkan_base/vulkan_swapchain.cpp',
-  'vulkan_base/vulkan_renderpass.cpp',
-)
-
 editor_files = files(
 	'vulkan_editor/header.cpp',
 	'vulkan_editor/vulkan_view.cpp',
 	'vulkan_editor/swapchain.cpp',
 	'vulkan_editor/pipeline.cpp',
 	'vulkan_editor/model.cpp',
-	'vulkan_editor/application.cpp',
 	'vulkan_editor/physicalDevice.cpp',
 	'vulkan_editor/logicalDevice.cpp',
 	'vulkan_editor/instance.cpp',
 	'vulkan_editor/renderpass.cpp',
-	'vulkan_editor/utils.cpp',
 	'vulkan_editor/template_loader.cpp',
 )
 
 # Source Files
-source_files = files('main.cpp') + files('libs/tinyfiledialogs.cpp', 'libs/tinyxml2.cpp') + vulkan_files + imgui_files + editor_files
+source_files = files('main.cpp') + files('libs/tinyfiledialogs.cpp', 'libs/tinyxml2.cpp') + imgui_files + editor_files
 
 inja_dep = dependency('inja', required: false)
 if not inja_dep.found()

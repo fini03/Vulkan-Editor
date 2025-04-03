@@ -45,6 +45,8 @@ public:
 
     void render() const override;
 
+    void fillOutputData(const PipelineSettings& settings);
+
     void generate(TemplateLoader templateLoader, const PipelineSettings& settings);
 
     void setModel(ModelNode *model) {
@@ -68,4 +70,6 @@ private:
     VertexDataNode *vertexData = nullptr;
     ColorDataNode *colorData = nullptr;
     TextureDataNode *textureData = nullptr;
+	inja::json data;
+	inja::json outputData;
 };

@@ -9,4 +9,6 @@ public:
 
 	void render() const override;
 	std::string generatePhysicalDevice(TemplateLoader templateLoader);
+private:
+	inja::json data;
 };

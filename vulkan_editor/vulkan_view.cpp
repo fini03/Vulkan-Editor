@@ -3,8 +3,6 @@
 #include "template_loader.h"
 #include <vulkan/vulkan.h>
 
-TemplateLoader templateLoader;
-
 PipelineNode* selectedPipelineNode = nullptr;
 ModelNode* selectedModelNode = nullptr;
 std::vector<uint32_t> colorWriteMaskOptions = { VK_COLOR_COMPONENT_R_BIT, VK_COLOR_COMPONENT_G_BIT, VK_COLOR_COMPONENT_B_BIT, VK_COLOR_COMPONENT_A_BIT };

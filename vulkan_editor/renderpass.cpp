@@ -1,9 +1,5 @@
 #include "renderpass.h"
 #include "swapchain.h"
-#include <inja/inja.hpp>
-using namespace inja;
-
-static json data;
 
 RenderPassNode::RenderPassNode(int id) : Node(id) {}
 RenderPassNode::~RenderPassNode() { }

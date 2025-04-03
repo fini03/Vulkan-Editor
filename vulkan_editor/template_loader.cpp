@@ -2,9 +2,7 @@
 
 void TemplateLoader::loadTemplateFile(const std::string fileName) {
 	inja::Template temp = env.parse_template(fileName);
-	env.include_template(fileName, temp);
 	templates[fileName] =  temp;
-
 }
 
 std::string TemplateLoader::renderTemplateFile(const std::string fileName, inja::json data) {

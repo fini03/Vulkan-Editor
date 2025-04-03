@@ -1,9 +1,5 @@
 #include "physicalDevice.h"
 #include "vulkan_editor/instance.h"
-#include <inja/inja.hpp>
-using namespace inja;
-
-static json data;
 
 PhysicalDeviceNode::PhysicalDeviceNode(int id) : Node(id) {}
 PhysicalDeviceNode::~PhysicalDeviceNode() { }

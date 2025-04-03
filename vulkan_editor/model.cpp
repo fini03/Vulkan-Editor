@@ -1,8 +1,6 @@
 #include "model.h"
-#include "utils.h"
 
 namespace ed = ax::NodeEditor;
-static inja::json data;
 
 ModelNode::ModelNode(int id) : Node(id) {
  	outputPins.push_back({ ed::PinId(id * 10 + 1), PinType::VertexOutput });

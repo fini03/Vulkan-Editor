@@ -1,8 +1,4 @@
 #include "logicalDevice.h"
-#include <inja/inja.hpp>
-using namespace inja;
-
-static json data;
 
 LogicalDeviceNode::LogicalDeviceNode(int id) : Node(id) {}
 LogicalDeviceNode::~LogicalDeviceNode() { }

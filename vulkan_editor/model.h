@@ -36,4 +36,6 @@ public:
     std::string generateModel(TemplateLoader templateLoader);
 
     void render() const override;
+private:
+	inja::json data;
 };
