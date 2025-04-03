@@ -1,22 +1,28 @@
+#define IMGUI_IMPL_VULKAN
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
+
 #include "vulkan_base/vulkan_base.h"
-#include <stdio.h>          // printf, fprintf
-#include <stdlib.h>         // abort
+#include "vulkan_editor/vulkan_view.h"
+
+#define SDL_MAIN_HANDLED
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
 // Data
-static VkAllocationCallbacks*   g_Allocator = nullptr;
-static VkPipelineCache          g_PipelineCache = VK_NULL_HANDLE;
-static VkDescriptorPool         g_DescriptorPool = VK_NULL_HANDLE;
+VkAllocationCallbacks* g_Allocator = nullptr;
+VkPipelineCache g_PipelineCache = VK_NULL_HANDLE;
+VkDescriptorPool g_DescriptorPool = VK_NULL_HANDLE;
 
 SDL_Window* window;
-static ImGui_ImplVulkanH_Window* wd;
-static ImGui_ImplVulkanH_Window g_MainWindowData;
-static uint32_t                 g_MinImageCount = 2;
-static bool                     g_SwapChainRebuild = false;
+ImGui_ImplVulkanH_Window* wd;
+ImGui_ImplVulkanH_Window g_MainWindowData;
+uint32_t g_MinImageCount = 2;
+bool g_SwapChainRebuild = false;
+
+ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+bool done = false;
 
 VulkanContext* context = {};
 
@@ -37,8 +43,6 @@ const bool enableValidationLayers = false;
 const bool enableValidationLayers = true;
 #endif
 
-#include "vulkan_editor/vulkan_view.h"
-
 const std::vector<std::string> templateFileNames = {
 	"vulkan_templates/class.txt",
 	"vulkan_templates/application.txt",
@@ -58,8 +62,7 @@ const std::vector<std::string> templateFileNames = {
 
 Editor editor{templateFileNames};
 
-static void check_vk_result(VkResult err)
-{
+static void check_vk_result(VkResult err) {
     if (err == VK_SUCCESS)
         return;
     fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
@@ -105,7 +108,7 @@ void createDescriptorPool() {
     vkCreateDescriptorPool(context->device, &pool_info, g_Allocator, &g_DescriptorPool);
 }
 
-void initVulkan(ImVector<const char*> instance_extensions) {
+void initVulkan() {
  	std::vector<const char*> enabledInstanceExtensions = getRequiredExtensions();
     context = context->initVulkan(
      	static_cast<uint32_t>(enabledInstanceExtensions.size()),
@@ -114,52 +117,31 @@ void initVulkan(ImVector<const char*> instance_extensions) {
        	enabledDeviceExtensions,
         enableValidationLayers
     );
-
-
     // Create Descriptor Pool
     createDescriptorPool();
 }
 
-void setupImgui() {
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
+void initWindow() {
+	if (!SDL_Init(SDL_INIT_VIDEO| SDL_INIT_GAMEPAD)) {
+ 		std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
+   		return;
+ 	}
 
-    // Setup Platform/Renderer backends
-    ImGui_ImplSDL3_InitForVulkan(window);
-    ImGui_ImplVulkan_InitInfo init_info = {};
-    //init_info.ApiVersion = VK_API_VERSION_1_3;              // Pass in your value of VkApplicationInfo::apiVersion, otherwise will default to header version.
-    init_info.Instance = context->instance;
-    init_info.PhysicalDevice = context->physicalDevice;
-    init_info.Device = context->device;
-    init_info.QueueFamily = context->graphicsQueue.familyIndex;
-    init_info.Queue = context->graphicsQueue.queue;
-    init_info.PipelineCache = g_PipelineCache;
-    init_info.DescriptorPool = g_DescriptorPool;
-    init_info.RenderPass = wd->RenderPass;
-    init_info.Subpass = 0;
-    init_info.MinImageCount = g_MinImageCount;
-    init_info.ImageCount = wd->ImageCount;
-    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    init_info.Allocator = g_Allocator;
-    init_info.CheckVkResultFn = check_vk_result;
-    ImGui_ImplVulkan_Init(&init_info);
+  	SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_HIDDEN);
+	window = SDL_CreateWindow("Vulkan Tutorial", 1920, 1080, window_flags);
+ 	if (!window) {
+  		std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
+  	}
 }
 
-void SetupVulkanWindow(ImGui_ImplVulkanH_Window* wd, VkSurfaceKHR surface, int width, int height) {
+void createVulkanWindow(ImGui_ImplVulkanH_Window* wd, VkSurfaceKHR surface, int width, int height) {
     wd->Surface = surface;
 
     // Check for WSI support
-    VkBool32 res;
-    vkGetPhysicalDeviceSurfaceSupportKHR(context->physicalDevice, context->graphicsQueue.familyIndex, wd->Surface, &res);
-    if (res != VK_TRUE)
-    {
-        fprintf(stderr, "Error no WSI support on physical device 0\n");
-        exit(-1);
+    VkBool32 presentSupport = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(context->physicalDevice, context->graphicsQueue.familyIndex, wd->Surface, &presentSupport);
+    if (!presentSupport) {
+        std::cerr << "Error: No WSI support on physical device 0" << std::endl;
     }
 
     // Select Surface Format
@@ -168,26 +150,31 @@ void SetupVulkanWindow(ImGui_ImplVulkanH_Window* wd, VkSurfaceKHR surface, int w
     wd->SurfaceFormat = ImGui_ImplVulkanH_SelectSurfaceFormat(context->physicalDevice, wd->Surface, requestSurfaceImageFormat, (size_t)IM_ARRAYSIZE(requestSurfaceImageFormat), requestSurfaceColorSpace);
 
     // Select Present Mode
-#ifdef APP_USE_UNLIMITED_FRAME_RATE
-    VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
-#else
-    VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_FIFO_KHR };
-#endif
+	#ifdef APP_USE_UNLIMITED_FRAME_RATE
+	    VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
+	#else
+	    VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_FIFO_KHR };
+	#endif
+
     wd->PresentMode = ImGui_ImplVulkanH_SelectPresentMode(context->physicalDevice, wd->Surface, &present_modes[0], IM_ARRAYSIZE(present_modes));
-    //printf("[vulkan] Selected PresentMode = %d\n", wd->PresentMode);
 
     // Create SwapChain, RenderPass, Framebuffer, etc.
-    IM_ASSERT(g_MinImageCount >= 2);
     ImGui_ImplVulkanH_CreateOrResizeWindow(context->instance, context->physicalDevice, context->device, wd, context->graphicsQueue.familyIndex, g_Allocator, width, height, g_MinImageCount);
 }
 
 void cleanup() {
+ 	vkDeviceWaitIdle(context->device);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+
+    ImGui_ImplVulkanH_DestroyWindow(context->instance, context->device, &g_MainWindowData, g_Allocator);
     vkDestroyDescriptorPool(context->device, g_DescriptorPool, g_Allocator);
     context->exitVulkan();
-}
 
-void cleanupVulkanWindow() {
-    ImGui_ImplVulkanH_DestroyWindow(context->instance, context->device, &g_MainWindowData, g_Allocator);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 }
 
 void render(ImGui_ImplVulkanH_Window* wd, ImDrawData* draw_data) {
@@ -201,14 +188,14 @@ void render(ImGui_ImplVulkanH_Window* wd, ImDrawData* draw_data) {
     if (err != VK_SUBOPTIMAL_KHR)
         check_vk_result(err);
 
-    ImGui_ImplVulkanH_Frame* fd = &wd->Frames[wd->FrameIndex];
-    {
+    ImGui_ImplVulkanH_Frame* fd = &wd->Frames[wd->FrameIndex]; {
         err = vkWaitForFences(context->device, 1, &fd->Fence, VK_TRUE, UINT64_MAX);    // wait indefinitely instead of periodically checking
         check_vk_result(err);
 
         err = vkResetFences(context->device, 1, &fd->Fence);
         check_vk_result(err);
     }
+
     {
         err = vkResetCommandPool(context->device, fd->CommandPool, 0);
         check_vk_result(err);
@@ -218,6 +205,7 @@ void render(ImGui_ImplVulkanH_Window* wd, ImDrawData* draw_data) {
         err = vkBeginCommandBuffer(fd->CommandBuffer, &info);
         check_vk_result(err);
     }
+
     {
         VkRenderPassBeginInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -254,7 +242,7 @@ void render(ImGui_ImplVulkanH_Window* wd, ImDrawData* draw_data) {
     }
 }
 
-static void present(ImGui_ImplVulkanH_Window* wd) {
+void present(ImGui_ImplVulkanH_Window* wd) {
     if (g_SwapChainRebuild)
         return;
     VkSemaphore render_complete_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
@@ -275,53 +263,25 @@ static void present(ImGui_ImplVulkanH_Window* wd) {
     wd->SemaphoreIndex = (wd->SemaphoreIndex + 1) % wd->SemaphoreCount; // Now we can use the next set of semaphores
 }
 
-// Main code
-int main(int, char**)
-{
-    // Setup SDL
-    // [If using SDL_MAIN_USE_CALLBACKS: all code below until the main loop starts would likely be your SDL_AppInit() function]
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
-    {
-        printf("Error: SDL_Init(): %s\n", SDL_GetError());
-        return -1;
-    }
-
-    // Create window with Vulkan graphics context
-    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_HIDDEN);
-    window = SDL_CreateWindow("Dear ImGui SDL3+Vulkan example", 1280, 720, window_flags);
-    if (window == nullptr)
-    {
-        printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
-        return -1;
-    }
-
-    ImVector<const char*> extensions;
-    {
-        uint32_t sdl_extensions_count = 0;
-        const char* const* sdl_extensions = SDL_Vulkan_GetInstanceExtensions(&sdl_extensions_count);
-        for (uint32_t n = 0; n < sdl_extensions_count; n++)
-            extensions.push_back(sdl_extensions[n]);
-    }
-    initVulkan(extensions);
-
-    // Create Window Surface
+void initSurface() {
+ 	// Create Window Surface
     VkSurfaceKHR surface;
-    VkResult err;
-    if (SDL_Vulkan_CreateSurface(window, context->instance, g_Allocator, &surface) == 0)
-    {
+
+    if (SDL_Vulkan_CreateSurface(window, context->instance, g_Allocator, &surface) == 0) {
         printf("Failed to create Vulkan surface.\n");
-        return 1;
     }
 
     // Create Framebuffers
-    int w, h;
-    SDL_GetWindowSize(window, &w, &h);
-    ImGui_ImplVulkanH_Window* wd = &g_MainWindowData;
-    SetupVulkanWindow(wd, surface, w, h);
+    int width, height;
+    SDL_GetWindowSize(window, &width, &height);
+    wd = &g_MainWindowData;
+    createVulkanWindow(wd, surface, width, height);
     SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     SDL_ShowWindow(window);
+}
 
-    // Setup Dear ImGui context
+void initImgui() {
+	// Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -351,18 +311,29 @@ int main(int, char**)
     init_info.Allocator = g_Allocator;
     init_info.CheckVkResultFn = check_vk_result;
     ImGui_ImplVulkan_Init(&init_info);
+}
 
-    //setupImgui(); // This crashes right now
+void runEditor() {
+	int width, height;
+	SDL_GetWindowSize(window, &width, &height); // Get real-time window size
 
-    // Our state
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	ImGui::SetNextWindowSize(ImVec2((float)width, (float)height), ImGuiCond_Always); // Always resize
+	ImGui::SetNextWindowPos(ImVec2(0, 0)); // Lock to top-left corner
 
-    // Main loop
-    bool done = false;
-    while (!done) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
-        {
+	ImGui::Begin("Graphical Vulkan Editor", nullptr,
+	    ImGuiWindowFlags_NoCollapse |
+	    ImGuiWindowFlags_NoMove |
+	    ImGuiWindowFlags_NoTitleBar
+	);
+
+	editor.startEditor();
+
+	ImGui::End();
+}
+
+void handleMessage() {
+	SDL_Event event;
+        while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT)
                 done = true;
@@ -371,72 +342,58 @@ int main(int, char**)
         }
 
         // [If using SDL_MAIN_USE_CALLBACKS: all code below would likely be your SDL_AppIterate() function]
-        if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED)
-        {
+        if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED) {
             SDL_Delay(10);
-            continue;
+            return;
         }
 
         // Resize swap chain?
         int fb_width, fb_height;
         SDL_GetWindowSize(window, &fb_width, &fb_height);
-        if (fb_width > 0 && fb_height > 0 && (g_SwapChainRebuild || g_MainWindowData.Width != fb_width || g_MainWindowData.Height != fb_height))
-        {
+        if (fb_width > 0 && fb_height > 0 && (g_SwapChainRebuild || g_MainWindowData.Width != fb_width || g_MainWindowData.Height != fb_height)) {
             ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
             ImGui_ImplVulkanH_CreateOrResizeWindow(context->instance, context->physicalDevice, context->device, &g_MainWindowData, context->graphicsQueue.familyIndex, g_Allocator, fb_width, fb_height, g_MinImageCount);
             g_MainWindowData.FrameIndex = 0;
             g_SwapChainRebuild = false;
         }
+}
 
-        // Start the Dear ImGui frame
+void renderFrame() {
+    // Rendering
+    ImGui::Render();
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
+    if (!is_minimized)
+    {
+        wd->ClearValue.color.float32[0] = clear_color.x * clear_color.w;
+        wd->ClearValue.color.float32[1] = clear_color.y * clear_color.w;
+        wd->ClearValue.color.float32[2] = clear_color.z * clear_color.w;
+        wd->ClearValue.color.float32[3] = clear_color.w;
+        render(wd, draw_data);
+        present(wd);
+    }
+}
+
+// Main code
+int main() {
+	initWindow();
+    initVulkan();
+    initSurface();
+    initImgui();
+
+    while (!done) {
+    	handleMessage();
+
+     	// Start the Dear ImGui frame
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
-        int width, height;
-        SDL_GetWindowSize(window, &width, &height); // Get real-time window size
-
-        ImGui::SetNextWindowSize(ImVec2((float)width, (float)height), ImGuiCond_Always); // Always resize
-        ImGui::SetNextWindowPos(ImVec2(0, 0)); // Lock to top-left corner
-
-       	ImGui::Begin("Graphical Vulkan Editor", nullptr,
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoTitleBar
-        );
-
-        editor.startEditor();
-
-        ImGui::End();
-
-        // Rendering
-        ImGui::Render();
-        ImDrawData* draw_data = ImGui::GetDrawData();
-        const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
-        if (!is_minimized)
-        {
-            wd->ClearValue.color.float32[0] = clear_color.x * clear_color.w;
-            wd->ClearValue.color.float32[1] = clear_color.y * clear_color.w;
-            wd->ClearValue.color.float32[2] = clear_color.z * clear_color.w;
-            wd->ClearValue.color.float32[3] = clear_color.w;
-            render(wd, draw_data);
-            present(wd);
-        }
+        runEditor();
+        renderFrame();
     }
 
-    // Cleanup
-    // [If using SDL_MAIN_USE_CALLBACKS: all code below would likely be your SDL_AppQuit() function]
-    err = vkDeviceWaitIdle(context->device);
-    check_vk_result(err);
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
-    ImGui::DestroyContext();
-
-    cleanupVulkanWindow();
     cleanup();
-
-    SDL_DestroyWindow(window);
-    SDL_Quit();
 
     return 0;
 }
